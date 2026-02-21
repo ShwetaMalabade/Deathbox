@@ -1,0 +1,113 @@
+{
+    "found": [
+        {
+            "type": "401k",
+            "provider": "Fidelity",
+            "employer_match": "4%",
+            "balance": "unknown",
+            "account_number": "unknown",
+            "beneficiary": "unknown",
+            "confidence": "uncertain",
+            "warnings": [
+                "Beneficiary not specified — CRITICAL. If beneficiary is outdated, the wrong person may receive these funds.",
+                "Account number not provided — family will need this to contact Fidelity."
+            ]
+        },
+        {
+            "type": "health_insurance",
+            "provider": "Anthem",
+            "plan_type": "unknown",
+            "cobra_eligible": true,
+            "cobra_deadline_days": 60,
+            "confidence": "certain",
+            "warnings": [
+                "Family has exactly 60 DAYS to elect COBRA continuation coverage after death. Miss this deadline and health insurance is lost forever.",
+                "Call Acme Corp HR immediately to begin COBRA election."
+            ]
+        },
+        {
+            "type": "hsa",
+            "provider": "unknown",
+            "balance": 2000,
+            "beneficiary": "unknown",
+            "confidence": "uncertain",
+            "warnings": [
+                "No beneficiary designated — HSA funds transfer tax-free to a designated beneficiary.",
+                "If no beneficiary is named, the HSA becomes part of the estate and may be taxed."
+            ]
+        },
+        {
+            "type": "life_insurance",
+            "provider": "unknown",
+            "coverage": "unknown",
+            "policy_number": "unknown",
+            "beneficiary": "unknown",
+            "confidence": "vague",
+            "warnings": [
+                "User said 'I think they give us some' — coverage amount and provider are completely unknown.",
+                "Most ADP-administered employers include $50K–$150K group term life insurance.",
+                "Family MUST contact HR to find the policy number and file a claim. Billions in life insurance goes unclaimed every year because families don't know it exists."
+            ]
+        },
+        {
+            "type": "auto_loan",
+            "lender": "Capital One",
+            "balance": 14000,
+            "account_number": "unknown",
+            "confidence": "certain",
+            "warnings": [
+                "This is a secured debt — tied to the vehicle only.",
+                "Family is NOT personally liable unless they co-signed the loan.",
+                "Do NOT let debt collectors tell the family they must pay this."
+            ]
+        },
+        {
+            "type": "subscriptions",
+            "services": [
+                "Netflix",
+                "Spotify"
+            ],
+            "confidence": "certain",
+            "warnings": [
+                "These will keep charging the deceased's card indefinitely. Cancel immediately."
+            ]
+        }
+    ],
+    "missing": [
+        {
+            "type": "pto_accrued",
+            "reason": "User did not mention paid time off or vacation days.",
+            "urgency": "critical",
+            "why_it_matters": "In many states (especially California), unused PTO must be paid out to the estate. With 3 years of employment, this could be worth $2,000–$10,000+. Contact HR to check the PTO balance."
+        },
+        {
+            "type": "add_insurance",
+            "reason": "User did not mention Accidental Death & Dismemberment insurance.",
+            "urgency": "high",
+            "why_it_matters": "90% of workers don't know they have AD&D insurance. It's almost always bundled free with group life insurance. Could mean an additional $50K–$150K payout if death was accidental."
+        },
+        {
+            "type": "stock_rsu",
+            "reason": "User did not mention stock options or RSUs.",
+            "urgency": "medium",
+            "why_it_matters": "If Acme Corp offers equity compensation, vested shares are part of the estate. Unvested shares may be forfeited. Check the equity portal or HR."
+        },
+        {
+            "type": "pension",
+            "reason": "User did not mention pension or defined benefit plan.",
+            "urgency": "low",
+            "why_it_matters": "Some employers still offer pension plans. A surviving spouse may be entitled to survivor benefits. Check with HR."
+        },
+        {
+            "type": "disability_insurance",
+            "reason": "User did not mention short-term or long-term disability insurance.",
+            "urgency": "low",
+            "why_it_matters": "Not directly relevant after death, but if there was a period of disability before death, there may be uncollected benefits."
+        }
+    ],
+    "employee_info": {
+        "employer": "Acme Corp",
+        "years_employed": 3,
+        "spouse": "Sarah"
+    }
+}
