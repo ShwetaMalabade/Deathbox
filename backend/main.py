@@ -16,16 +16,29 @@ Endpoints:
 import json
 import uuid
 import hashlib
+import os
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
 from db import create_package, get_package, update_checkin
 from gemini_service import analyze_transcript, extract_document, generate_narration_script
 from elevenlabs_service import text_to_speech
 from solana_service import write_to_solana
+
+load_dotenv()
+
+# Frontend integration settings (Phase 6)
+ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
+FRONTEND_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("FRONTEND_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 
 
 # ── App Setup ──────────────────────────────────────────────
@@ -38,7 +51,7 @@ app = FastAPI(
 # CORS — allow frontend to call us from any origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],         # Allow all origins for hackathon
+    allow_origins=FRONTEND_ORIGINS,  # Use env-configured origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,6 +76,25 @@ class CheckinRequest(BaseModel):
     package_id: str
 
 
+# ── Integration Helpers ────────────────────────────────────
+def _service_status():
+    """
+    Snapshot of external-service readiness for integration/debugging.
+    """
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    elevenlabs_key = os.getenv("ELEVENLABS_API_KEY")
+    elevenlabs_voice = os.getenv("ELEVENLABS_VOICE_ID")
+
+    return {
+        "gemini_configured": bool(gemini_key and "your_" not in gemini_key.lower()),
+        "elevenlabs_configured": bool(elevenlabs_key and "your_" not in elevenlabs_key.lower()),
+        "elevenlabs_voice_configured": bool(elevenlabs_voice and "your_" not in elevenlabs_voice.lower()),
+        "solana_mode": "placeholder",
+        "cors_origins": FRONTEND_ORIGINS,
+        "upload_max_mb": MAX_UPLOAD_BYTES // (1024 * 1024),
+    }
+
+
 # ── Health Check ───────────────────────────────────────────
 
 @app.get("/")
@@ -78,6 +110,93 @@ async def root():
             "POST /api/narrate",
             "POST /api/checkin",
         ]
+    }
+
+@app.get("/api/health")
+async def api_health():
+    """
+    Basic machine-readable health endpoint for frontend/devops checks.
+    """
+    return {
+        "name": "DeathBox API",
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+@app.get("/api/integration-status")
+async def api_integration_status():
+    """
+    Phase 5 endpoint:
+    Returns external integration readiness (keys configured, mode, etc.).
+    """
+    status = _service_status()
+    return {
+        "status": "ok",
+        "services": status,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+@app.get("/api/frontend-contract")
+async def api_frontend_contract():
+    """
+    Phase 6 endpoint:
+    Source-of-truth for frontend payload/response expectations.
+    """
+    return {
+        "status": "ok",
+        "base_path": "/api",
+        "cors_origins": FRONTEND_ORIGINS,
+        "upload": {
+            "allowed_mime_types": ALLOWED_UPLOAD_TYPES,
+            "max_size_mb": MAX_UPLOAD_BYTES // (1024 * 1024),
+            "endpoint": "/api/extract-doc",
+            "field_name": "file",
+        },
+        "contracts": {
+            "analyze": {
+                "method": "POST",
+                "path": "/api/analyze",
+                "request": {"transcript": "string"},
+                "response_keys": ["found", "missing", "personal_info"],
+            },
+            "seal": {
+                "method": "POST",
+                "path": "/api/seal",
+                "request_keys": ["package_data", "recipient_name", "recipient_email", "checkin_days"],
+                "response_keys": ["package_id", "solana_tx", "hash", "next_checkin", "message"],
+            },
+            "package": {
+                "method": "GET",
+                "path": "/api/package/{package_id}?force=true|false",
+                "locked_response_keys": ["locked", "message", "unlocks_at", "days_remaining"],
+                "unlocked_response_keys": [
+                    "locked",
+                    "package_id",
+                    "package_data",
+                    "recipient_name",
+                    "created_at",
+                    "solana_tx",
+                    "package_hash",
+                    "verified",
+                ],
+            },
+            "checkin": {
+                "method": "POST",
+                "path": "/api/checkin",
+                "request": {"package_id": "string"},
+                "response_keys": ["message", "next_checkin"],
+            },
+            "narrate": {
+                "method": "POST",
+                "path": "/api/narrate",
+                "request": {"package_id": "string"},
+                "success_content_type": "audio/mpeg",
+                "fallback_response_keys": ["fallback", "script", "error"],
+            },
+        },
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
@@ -113,8 +232,7 @@ async def api_extract_doc(file: UploadFile = File(...)):
     Flow: Frontend uploads image → this endpoint → Gemini Vision → extracted details → Frontend
     """
     # Validate file type
-    allowed_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
-    if file.content_type not in allowed_types:
+    if file.content_type not in ALLOWED_UPLOAD_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"File type {file.content_type} not supported. Upload JPEG, PNG, WebP, or PDF."
@@ -126,7 +244,7 @@ async def api_extract_doc(file: UploadFile = File(...)):
     if len(image_bytes) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    if len(image_bytes) > 10 * 1024 * 1024:  # 10MB limit
+    if len(image_bytes) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=400, detail="File too large. Max 10MB.")
 
     result = await extract_document(image_bytes, mime_type=file.content_type)

@@ -13,6 +13,7 @@ import sqlite3
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 DB_PATH = Path(__file__).parent / "deathbox.db"
 
@@ -85,7 +86,7 @@ def create_package(
     print(f"✅ Package {package_id} saved to database")
 
 
-def get_package(package_id: str) -> dict | None:
+def get_package(package_id: str) -> Optional[dict]:
     """
     Retrieve a package by its ID.
 
