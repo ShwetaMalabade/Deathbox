@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeathBox — Complete Project Bible</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a28;
+  --border: #2a2a3a;
+  --text: #e8e8f0;
+  --text-dim: #8888a0;
+  --accent: #ff6b35;
+  --accent2: #ffd166;
+  --blue: #4ecdc4;
+  --purple: #a78bfa;
+  --red: #ff6b6b;
+  --green: #51cf66;
+  --pink: #f472b6;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+.noise {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+/* HERO */
+.hero {
+  text-align: center;
+  padding: 80px 0 60px;
+  position: relative;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -100px; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(255,107,53,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-tag {
+  display: inline-block;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-family: 'Space Mono', monospace;
+  color: var(--accent);
+  margin-bottom: 24px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  font-size: clamp(48px, 8vw, 80px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -3px;
+  margin-bottom: 16px;
+}
+
+.hero h1 span { color: var(--accent); }
+
+.hero .subtitle {
+  font-size: 20px;
+  color: var(--text-dim);
+  font-weight: 300;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* SECTION */
+.section {
+  margin: 60px 0;
+}
+
+.section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.section h2 {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 20px;
+}
+
+.section p {
+  color: var(--text-dim);
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+/* TRACK CARDS */
+.tracks-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.track-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.track-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.track-card.financial::before { background: var(--accent2); }
+.track-card.social::before { background: var(--green); }
+
+.track-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.track-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.track-card .why {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.track-card .tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.track-card.financial .tag { background: rgba(255,209,102,0.15); color: var(--accent2); }
+.track-card.social .tag { background: rgba(81,207,102,0.15); color: var(--green); }
+
+/* SPONSOR CARDS */
+.sponsors-grid {
+  display: grid;
+  gap: 20px;
+  margin: 24px 0;
+}
+
+.sponsor-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.sponsor-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: -0.5px;
+}
+
+.sponsor-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.sponsor-card .role { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 10px; }
+.sponsor-card .desc { font-size: 14px; color: var(--text-dim); line-height: 1.7; }
+
+.sponsor-card .eli5 {
+  margin-top: 12px;
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--accent);
+}
+
+.sponsor-card .eli5 .label {
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  color: var(--accent);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.sponsor-card .eli5 p {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+}
+
+/* FLOW */
+.flow-step {
+  position: relative;
+  padding: 32px;
+  padding-left: 100px;
+  margin-bottom: 8px;
+}
+
+.flow-step::before {
+  content: '';
+  position: absolute;
+  left: 44px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.flow-step:last-child::before { display: none; }
+
+.step-num {
+  position: absolute;
+  left: 20px;
+  top: 32px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  z-index: 2;
+}
+
+.flow-step .step-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.flow-step h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.flow-step .api-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.api-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+}
+
+.api-tag.gemini { background: rgba(78,205,196,0.15); color: var(--blue); }
+.api-tag.eleven { background: rgba(167,139,250,0.15); color: var(--purple); }
+.api-tag.solana { background: rgba(244,114,182,0.15); color: var(--pink); }
+.api-tag.adp { background: rgba(255,107,53,0.15); color: var(--accent); }
+.api-tag.vultr { background: rgba(255,209,102,0.15); color: var(--accent2); }
+
+.flow-step .what-happens {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.flow-step .what-happens strong { color: var(--text); }
+
+.flow-step .code-hint {
+  margin-top: 12px;
+  background: #0d0d18;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--blue);
+  line-height: 1.8;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 50px 0;
+}
+
+/* SCREEN MOCKUP */
+.screen {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 24px 0;
+}
+
+.screen-bar {
+  background: var(--surface2);
+  padding: 10px 16px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.screen-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+
+.screen-body {
+  padding: 24px;
+}
+
+.screen-body h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-dim);
+}
+
+.checklist-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.checklist-item:last-child { border: none; }
+
+.check-status {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.check-status.done { background: rgba(81,207,102,0.2); color: var(--green); }
+.check-status.warn { background: rgba(255,107,53,0.2); color: var(--accent); }
+.check-status.danger { background: rgba(255,107,107,0.2); color: var(--red); }
+
+.checklist-item .info h5 { font-size: 14px; font-weight: 600; }
+.checklist-item .info p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+/* SOLANA EXPLAINER */
+.explain-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  margin: 20px 0;
+}
+
+.explain-box h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.explain-box .analogy {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 12px 0;
+  border-left: 3px solid var(--pink);
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.explain-box ul {
+  list-style: none;
+  padding: 0;
+}
+
+.explain-box ul li {
+  padding: 8px 0;
+  padding-left: 20px;
+  position: relative;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.explain-box ul li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--pink);
+}
+
+/* PITCH SECTION */
+.pitch-card {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 36px;
+  margin: 24px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.pitch-card::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -20%;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(255,107,53,0.06) 0%, transparent 70%);
+}
+
+.pitch-card h3 {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  color: var(--accent);
+}
+
+.pitch-card p {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.8;
+  margin-bottom: 12px;
+}
+
+.pitch-card .line {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent2);
+  font-style: italic;
+  margin-top: 16px;
+}
+
+/* TABLE */
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+}
+
+.api-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--surface2);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.api-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.api-table td:first-child { color: var(--text); font-weight: 500; }
+
+.api-table tr:hover td { background: var(--surface); }
+
+@media (max-width: 700px) {
+  .tracks-grid { grid-template-columns: 1fr; }
+  .sponsor-card { grid-template-columns: 1fr; }
+  .flow-step { padding-left: 70px; }
+  .flow-step::before { left: 30px; }
+  .step-num { left: 6px; width: 40px; height: 40px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">📋 Complete Project Bible</div>
+  <h1>Death<span>Box</span></h1>
+  <p class="subtitle">The Financial Afterlife Kit — so your family never has to guess what you left behind</p>
+</div>
+
+<div class="divider"></div>
+
+<!-- ONE LINE PITCH -->
+<div class="section">
+  <div class="section-label">The Problem</div>
+  <h2>When someone dies, their family has NO CLUE what financial accounts, benefits, insurance, debts, or subscriptions exist.</h2>
+  <p>The average American has 12+ financial accounts. A massive chunk of their financial life is locked inside their employer's payroll system (often ADP). Families spend 6-12 months just FINDING everything. Meanwhile, COBRA deadlines pass (60 days), life insurance goes unclaimed (billions sit unclaimed), PTO payouts are forgotten, and Netflix keeps charging a dead person's card.</p>
+  <p><strong style="color: var(--text)">DeathBox lets you record your financial life through simple voice conversations while you're alive, and automatically delivers an organized "Afterlife Package" to your family when you're gone.</strong></p>
+</div>
+
+<div class="divider"></div>
+
+<!-- TRACKS -->
+<div class="section">
+  <div class="section-label">Hackathon Tracks</div>
+  <h2>Which tracks does this hit?</h2>
+
+  <div class="tracks-grid">
+    <div class="track-card financial">
+      <div class="track-num">TRACK IV</div>
+      <h3>💰 Financial</h3>
+      <p class="why">This is fundamentally a fintech product — organizing, protecting, and transferring financial information. It empowers people to navigate the complex financial system around death, insurance, and benefits.</p>
+      <div class="tag">PRIMARY TRACK</div>
+    </div>
+    <div class="track-card social">
+      <div class="track-num">TRACK II</div>
+      <h3>🌱 Social Good</h3>
+      <p class="why">Unclaimed benefits disproportionately hurt low-income families and minorities. This tool democratizes access to information that wealthy families already get from estate lawyers. It literally saves families from financial ruin during grief.</p>
+      <div class="tag">SECONDARY TRACK</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SPONSORS EXPLAINED -->
+<div class="section">
+  <div class="section-label">Sponsors — What each one is & how we use it</div>
+  <h2>Every sponsor explained simply</h2>
+
+  <div class="sponsors-grid">
+
+    <!-- ADP -->
+    <div class="sponsor-card">
+      <div class="sponsor-icon" style="background: linear-gradient(135deg, #d4002a 0%, #ff1744 100%); color: white;">ADP</div>
+      <div>
+        <h3>ADP — "Always Designing for People"</h3>
+        <div class="role">🥇 GOLD SPONSOR — Our main target</div>
+        <p class="desc">ADP is the world's biggest payroll & HR company. They process paychecks for <strong style="color: var(--text)">1 in 6 American workers</strong>. When your employer deducts taxes, manages your 401k, gives you health insurance, life insurance, PTO tracking — all of that data lives inside ADP's systems.</p>
+        <div class="eli5">
+          <div class="label">💡 How we use ADP</div>
+          <p>The core insight: ADP holds a treasure trove of financial data about every worker — 401k balance, life insurance beneficiary, HSA funds, accrued PTO, stock vesting, COBRA eligibility. When that worker dies, their family has NO idea any of this exists. DeathBox is built around organizing and surfacing <strong>exactly the kind of data ADP manages</strong>. We use simulated ADP payroll data (since we can't access their real API in 24hrs) to show how DeathBox would plug directly into their ecosystem.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- GEMINI -->
+    <div class="sponsor-card">
+      <div class="sponsor-icon" style="background: linear-gradient(135deg, #1a73e8 0%, #4ecdc4 100%); color: white;">Gemini</div>
+      <div>
+        <h3>Google Gemini API</h3>
+        <div class="role">🧠 Our AI brain</div>
+        <p class="desc">Gemini is Google's AI model (like ChatGPT but from Google). It can understand text, extract structured information, answer questions, and generate content.</p>
+        <div class="eli5">
+          <div class="label">💡 How we use Gemini</div>
+          <p>Three critical jobs: <strong>(1)</strong> User talks about their finances in messy, casual speech → Gemini extracts clean structured data (accounts, amounts, beneficiaries). <strong>(2)</strong> Gemini knows what common ADP benefits exist and flags what the user FORGOT to mention ("You didn't mention life insurance — most employers include it"). <strong>(3)</strong> Generates the family-facing scripts and instruction cards in plain English.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ELEVENLABS -->
+    <div class="sponsor-card">
+      <div class="sponsor-icon" style="background: linear-gradient(135deg, #6c3baa 0%, #a78bfa 100%); color: white;">11Labs</div>
+      <div>
+        <h3>ElevenLabs</h3>
+        <div class="role">🎙️ Our voice engine</div>
+        <p class="desc">ElevenLabs is an AI voice company. They can convert text to incredibly realistic speech, transcribe speech to text, clone voices from audio samples, and generate voices with emotions (sad, warm, urgent).</p>
+        <div class="eli5">
+          <div class="label">💡 How we use ElevenLabs</div>
+          <p><strong>(1) Speech-to-Text:</strong> User talks about their finances into the app → ElevenLabs transcribes it. <strong>(2) Text-to-Speech:</strong> The family's "Afterlife Package" is narrated by a warm AI voice that walks them through every step. <strong>(3) Voice Cloning (stretch goal):</strong> Using the audio the user recorded during setup, we can clone their voice so the family hears the walkthrough in their loved one's own voice.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOLANA -->
+    <div class="sponsor-card">
+      <div class="sponsor-icon" style="background: linear-gradient(135deg, #9945ff 0%, #14f195 100%); color: white;">SOL</div>
+      <div>
+        <h3>Solana</h3>
+        <div class="role">⛓️ Our trust layer</div>
+        <p class="desc">Solana is a blockchain — think of it as a public, permanent notebook that nobody can edit or delete. Once you write something in it, it stays there forever and anyone can verify it's real.</p>
+        <div class="eli5">
+          <div class="label">💡 How we use Solana</div>
+          <p>When the user saves their Afterlife Package, we create a digital "fingerprint" (hash) of the data and write it onto Solana. This proves: <strong>(1)</strong> The package existed on this date (timestamp). <strong>(2)</strong> Nobody has tampered with it since. <strong>(3)</strong> The dead man's switch: if the user doesn't check in for X days, access is released. Think of it as a tamper-proof seal on an envelope that's opened automatically when the time comes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- VULTR -->
+    <div class="sponsor-card">
+      <div class="sponsor-icon" style="background: linear-gradient(135deg, #007bfc 0%, #00d4ff 100%); color: white;">Vultr</div>
+      <div>
+        <h3>Vultr</h3>
+        <div class="role">☁️ Our cloud server</div>
+        <p class="desc">Vultr is a cloud hosting company — they give you computers on the internet to run your app on. Like renting a powerful computer in a data center instead of running everything on your laptop.</p>
+        <div class="eli5">
+          <div class="label">💡 How we use Vultr</div>
+          <p>Our entire backend (the server that stores encrypted data, runs the Gemini prompts, manages check-in timers, sends family notifications) runs on a Vultr cloud instance. We mention this in our pitch: "Deployed on Vultr's cloud infrastructure for reliable, always-on operation — because this is data that literally cannot afford downtime."</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESAGE -->
+    <div class="sponsor-card">
+      <div class="sponsor-icon" style="background: linear-gradient(135deg, #e83e8c 0%, #f472b6 100%); color: white;">Presage</div>
+      <div>
+        <h3>Presage (Optional Bonus)</h3>
+        <div class="role">📷 Contactless health sensing</div>
+        <p class="desc">Presage's SDK uses your phone camera to read your heart rate, breathing, and stress levels without any wearable device. Just by looking at your face through the camera.</p>
+        <div class="eli5">
+          <div class="label">💡 Optional integration idea</div>
+          <p>During the voice recording session, Presage detects which financial topics cause the user stress (elevated heart rate when discussing debt, anxiety when talking about beneficiaries). The system uses this to flag: "This topic caused you significant stress — would you like help from a financial advisor?" This is a BONUS, not core. Only add if you have time.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SOLANA DEEP EXPLAINER -->
+<div class="section">
+  <div class="section-label">Tech Explainer</div>
+  <h2>Solana — explained like you're 5</h2>
+
+  <div class="explain-box">
+    <h4>🤔 What is a blockchain?</h4>
+    <div class="analogy">
+      Imagine a <strong>notebook that sits in the middle of a city square</strong>. Anyone can READ it. When you write something in it, <strong>it's permanent — no eraser works on it.</strong> And every page has a timestamp and a signature proving WHO wrote it and WHEN. Nobody owns the notebook. It just... exists. That's a blockchain.
+    </div>
+  </div>
+
+  <div class="explain-box">
+    <h4>🤔 What is Solana specifically?</h4>
+    <div class="analogy">
+      Solana is ONE specific blockchain (like how Chrome is one specific browser). It's popular because it's <strong>fast</strong> (processes things in under a second) and <strong>cheap</strong> (writing something costs less than $0.01). Other blockchains like Ethereum are slower and more expensive. For a hackathon, Solana is perfect.
+    </div>
+  </div>
+
+  <div class="explain-box">
+    <h4>🤔 What is a "hash"?</h4>
+    <div class="analogy">
+      A hash is like a <strong>fingerprint for data</strong>. You take ANY amount of data (an entire document, a single word, whatever) and run it through a math formula. Out comes a fixed-length string like: <code style="color: var(--pink)">a7f3b9c2e8d1...</code><br><br>
+      The magic: <strong>the same data ALWAYS produces the same hash</strong>. But change even ONE character and the hash is completely different. So if I store a hash on the blockchain, anyone can later verify: "Is this document the same one that was hashed on that date?" If the hash matches → untampered. If not → someone changed it.
+    </div>
+  </div>
+
+  <div class="explain-box">
+    <h4>🤔 What is a "dead man's switch"?</h4>
+    <div class="analogy">
+      A dead man's switch is a mechanism that <strong>activates when you STOP doing something</strong>. In old trains, the driver had to hold a lever. If they let go (fell asleep, had a heart attack), the train would stop automatically.<br><br>
+      For DeathBox: you check in periodically (open the app, press a button). If you don't check in for, say, 30 days, the system assumes something happened to you and releases your Afterlife Package to your designated person.<br><br>
+      <strong>In our hackathon demo:</strong> We won't build a fully automated Solana smart contract for this (too complex for 24hrs). Instead, our backend checks the last check-in timestamp, and if it's past the threshold, it unlocks access. The Solana part just stores the hash as proof. We explain the full vision in the pitch.
+    </div>
+  </div>
+
+  <div class="explain-box">
+    <h4>🤔 What is a "wallet" (Phantom)?</h4>
+    <div class="analogy">
+      A Solana wallet is like a <strong>bank account for blockchain stuff</strong>. Phantom is a popular wallet app (browser extension). To write anything on Solana, you need a wallet with a tiny amount of SOL (Solana's currency) to pay the transaction fee (~$0.001).<br><br>
+      <strong>For the hackathon:</strong> We use Solana's "devnet" — a free test version of Solana where you get fake SOL for free. Everything works identically to real Solana, but costs nothing. This is standard practice for hackathon demos.
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- THE COMPLETE FLOW -->
+<div class="section">
+  <div class="section-label">The Complete Flow</div>
+  <h2>Step-by-step: What the user sees & what happens behind the scenes</h2>
+</div>
+
+<!-- PHASE 1 HEADER -->
+<div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
+  <span style="font-family: 'Space Mono', monospace; font-size: 11px; color: var(--green); letter-spacing: 2px;">PHASE 1</span>
+  <h3 style="font-size: 20px; margin-top: 4px;">While You're Alive — Setting Up Your Financial Afterlife</h3>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--green); color: var(--bg);">1</div>
+  <div class="step-content">
+    <h3>User opens the app & starts talking</h3>
+    <div class="api-tags">
+      <span class="api-tag eleven">ElevenLabs STT</span>
+    </div>
+    <p class="what-happens">
+      No forms. No spreadsheets. The user just <strong>talks</strong> naturally into their phone:<br><br>
+      <em style="color: var(--blue)">"I work at a tech company called Acme. I have a 401k, I think through Fidelity. My company matches like 4% I think. I also have health insurance and I'm pretty sure they give us life insurance but honestly I don't remember how much. Oh and I have an HSA with maybe 2 grand in it. I also owe like 14K on my car loan through Capital One..."</em><br><br>
+      ElevenLabs <strong>Speech-to-Text API</strong> transcribes this to text in real-time. User can also type if they prefer.
+    </p>
+    <div class="code-hint">// ElevenLabs Speech-to-Text
+const transcription = await elevenlabs.speechToText({
+  audio: audioBlob,
+  model_id: "scribe_v1"
+});
+// Returns: "I work at a tech company called Acme..."</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--blue); color: var(--bg);">2</div>
+  <div class="step-content">
+    <h3>Gemini extracts structured data from messy speech</h3>
+    <div class="api-tags">
+      <span class="api-tag gemini">Gemini API</span>
+    </div>
+    <p class="what-happens">
+      The raw transcript is messy, uncertain, full of "I think" and "maybe." Gemini's job: extract every piece of financial data and organize it into a clean structure. It also flags <strong>confidence levels</strong> — "user said 'I think 4% match' → mark as unverified."
+    </p>
+    <div class="code-hint">// Gemini prompt
+"Extract ALL financial info from this transcript.
+For each item, note:
+- Type (401k, insurance, debt, etc.)
+- Provider/company
+- Amount (if mentioned)
+- Beneficiary (if mentioned)  
+- Confidence level (certain/uncertain/unknown)
+Return as JSON."
+
+// Returns structured data like:
+{
+  "retirement_401k": {
+    "provider": "Fidelity",
+    "employer_match": "4%",
+    "confidence": "uncertain",
+    "beneficiary": "unknown" // ⚠️ FLAG THIS
+  },
+  "life_insurance": {
+    "coverage": "unknown", // ⚠️ FLAG THIS
+    "type": "employer group term (assumed)"
+  },
+  "hsa": { "balance": 2000, "confidence": "uncertain" },
+  "auto_loan": { "lender": "Capital One", "balance": 14000 }
+}</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--blue); color: var(--bg);">3</div>
+  <div class="step-content">
+    <h3>The "Work Benefits Checklist" — Gemini finds what's MISSING</h3>
+    <div class="api-tags">
+      <span class="api-tag gemini">Gemini API</span>
+      <span class="api-tag adp">ADP Knowledge</span>
+    </div>
+    <p class="what-happens">
+      This is the ADP-specific killer feature. Gemini knows the standard benefits that ADP-administered employers typically offer. It compares what the user mentioned against this standard list and <strong>flags everything they forgot or don't know about.</strong>
+    </p>
+
+    <!-- MOCK SCREEN -->
+    <div class="screen" style="margin-top: 16px;">
+      <div class="screen-bar">
+        <div class="screen-dot" style="background: #ff5f57"></div>
+        <div class="screen-dot" style="background: #ffbd2e"></div>
+        <div class="screen-dot" style="background: #28c840"></div>
+        <span style="margin-left: 12px; font-size: 12px; color: var(--text-dim);">DeathBox — Your Benefits Checklist</span>
+      </div>
+      <div class="screen-body">
+        <h4>Your Work Benefits — Found & Missing</h4>
+
+        <div class="checklist-item">
+          <div class="check-status done">✓</div>
+          <div class="info">
+            <h5>401k Retirement</h5>
+            <p>You mentioned this ✓ — but you said "I think 4% match." Verify the exact match % and check your vesting schedule. <strong style="color: var(--accent);">You didn't mention a beneficiary — this is CRITICAL.</strong></p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="check-status warn">!</div>
+          <div class="info">
+            <h5>Life Insurance — Coverage Unknown</h5>
+            <p>You mentioned it exists but don't know the amount. Most ADP-administered employers offer $50K-$150K group term life. <strong style="color: var(--accent);">Your family won't know to claim this if you don't record it. Check your benefits portal.</strong></p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="check-status done">✓</div>
+          <div class="info">
+            <h5>HSA (Health Savings Account)</h5>
+            <p>~$2,000 balance. This transfers to a designated beneficiary tax-free. <strong style="color: var(--accent);">Have you designated a beneficiary for your HSA?</strong></p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="check-status danger">✗</div>
+          <div class="info">
+            <h5>Accrued PTO — NOT MENTIONED</h5>
+            <p>You didn't mention paid time off. In many states, unused PTO must be paid out to your estate. This could be worth $2,000-$10,000+. Check how many days you've accrued.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="check-status danger">✗</div>
+          <div class="info">
+            <h5>COBRA Health Insurance — NOT MENTIONED</h5>
+            <p>When you die, your spouse/dependents can keep your employer health insurance for 18-36 months through COBRA. But they only have <strong style="color: var(--red);">60 DAYS to elect it</strong>. If nobody tells them, they lose it forever.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="check-status danger">✗</div>
+          <div class="info">
+            <h5>AD&D Insurance — NOT MENTIONED</h5>
+            <p>Most employers include Accidental Death & Dismemberment (AD&D) insurance bundled with life insurance. 90% of workers don't know they have it. Check your benefits.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="check-status danger">✗</div>
+          <div class="info">
+            <h5>Stock Options / RSUs — NOT MENTIONED</h5>
+            <p>Does your company offer equity? Vested shares are part of your estate. Unvested shares may be forfeited. This could be worth tens of thousands.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--purple); color: var(--bg);">4</div>
+  <div class="step-content">
+    <h3>User fills gaps, confirms info, adds personal notes</h3>
+    <div class="api-tags">
+      <span class="api-tag eleven">ElevenLabs STT</span>
+      <span class="api-tag gemini">Gemini API</span>
+    </div>
+    <p class="what-happens">
+      User goes back and adds info for the flagged items. They can talk or type. They can also add personal context:<br><br>
+      <em style="color: var(--blue)">"I checked — my life insurance is $100K. The beneficiary is still my mom but it should be my wife Sarah. I need to update that. Also I have 14 days of PTO saved up."</em><br><br>
+      Gemini updates the structured data and generates a <strong>TODO alert</strong>: "⚠️ URGENT: Your life insurance beneficiary is your mother, not your wife. Update this in your employer benefits portal ASAP. If you die before updating, your wife may need to legally contest this."
+    </p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--pink); color: var(--bg);">5</div>
+  <div class="step-content">
+    <h3>Package saved + hashed on Solana + check-in timer starts</h3>
+    <div class="api-tags">
+      <span class="api-tag solana">Solana</span>
+      <span class="api-tag vultr">Vultr Backend</span>
+    </div>
+    <p class="what-happens">
+      The complete financial data is <strong>encrypted and stored on the Vultr backend</strong>. A hash (fingerprint) of the data is written to Solana's blockchain with a timestamp — proving the package existed on this date and hasn't been tampered with.<br><br>
+      The user designates a recipient (wife, child, lawyer) and sets a check-in interval (e.g. 30 days). A timer starts. If the user doesn't open the app and confirm they're alive within 30 days, the system sends access to the designated person.
+    </p>
+    <div class="code-hint">// Simplified Solana hash storage
+import { Connection, PublicKey } from "@solana/web3.js";
+
+// Create hash of the entire package
+const packageHash = sha256(JSON.stringify(afterlifePackage));
+
+// Store on Solana devnet (free for testing)
+const tx = await sendTransaction({
+  data: {
+    hash: packageHash,
+    created_at: Date.now(),
+    check_in_interval_days: 30,
+    last_check_in: Date.now()
+  }
+});
+// tx = "4xK9f2..." ← verifiable on Solana Explorer</div>
+  </div>
+</div>
+
+<!-- PHASE 2 HEADER -->
+<div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin: 40px 0 20px;">
+  <span style="font-family: 'Space Mono', monospace; font-size: 11px; color: var(--red); letter-spacing: 2px;">PHASE 2</span>
+  <h3 style="font-size: 20px; margin-top: 4px;">After Death — The Family Receives the Afterlife Package</h3>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--red); color: white;">6</div>
+  <div class="step-content">
+    <h3>Check-in expires → family gets access</h3>
+    <div class="api-tags">
+      <span class="api-tag vultr">Vultr Backend</span>
+      <span class="api-tag solana">Solana Verification</span>
+    </div>
+    <p class="what-happens">
+      30 days pass. No check-in. The system sends a secure link to the designated recipient (email / SMS). Before full access, it sends a preliminary alert: "We haven't heard from [Name] in 30 days. If you believe this is an error, please contact them. Access to their Financial Afterlife Package will be fully released in 48 hours."<br><br>
+      This buffer prevents accidental release (user just forgot to check in).
+    </p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--red); color: white;">7</div>
+  <div class="step-content">
+    <h3>Family opens the Afterlife Package</h3>
+    <div class="api-tags">
+      <span class="api-tag gemini">Gemini API</span>
+      <span class="api-tag eleven">ElevenLabs TTS</span>
+      <span class="api-tag adp">ADP Data</span>
+    </div>
+    <p class="what-happens">
+      The family sees a <strong>beautifully organized, non-overwhelming guide</strong> with urgency-coded sections. An AI voice (ElevenLabs) can read the entire package out loud — critical for grieving people who can't focus on reading.
+    </p>
+
+    <!-- FAMILY SCREEN MOCK -->
+    <div class="screen" style="margin-top: 16px;">
+      <div class="screen-bar">
+        <div class="screen-dot" style="background: #ff5f57"></div>
+        <div class="screen-dot" style="background: #ffbd2e"></div>
+        <div class="screen-dot" style="background: #28c840"></div>
+        <span style="margin-left: 12px; font-size: 12px; color: var(--text-dim);">DeathBox — Afterlife Package for Sarah</span>
+      </div>
+      <div class="screen-body">
+
+        <div style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+          <strong style="color: var(--red);">🔴 DO THESE WITHIN 60 DAYS:</strong>
+          <p style="font-size: 13px; color: var(--text); margin-top: 6px;">
+            • Elect COBRA health insurance — Call HR at (555) 123-4567, reference employee ID #A4821<br>
+            • File life insurance claim — $100K policy through MetLife, Group Policy #GL-49201<br>
+            • Contact Fidelity about 401k — Account may still list mother as beneficiary
+          </p>
+        </div>
+
+        <div style="background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.3); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+          <strong style="color: var(--accent2);">🟡 MONEY YOU'RE OWED:</strong>
+          <p style="font-size: 13px; color: var(--text); margin-top: 6px;">
+            • Final paycheck — contact payroll<br>
+            • 14 days unused PTO — in California, this MUST be paid out (~$4,300)<br>
+            • HSA balance — $2,000, transfers to designated beneficiary tax-free<br>
+            • Check for AD&D insurance — may be additional $100K payout
+          </p>
+        </div>
+
+        <div style="background: rgba(81,207,102,0.1); border: 1px solid rgba(81,207,102,0.3); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+          <strong style="color: var(--green);">🟢 DEBTS — WHAT YOU OWE vs DON'T:</strong>
+          <p style="font-size: 13px; color: var(--text); margin-top: 6px;">
+            • Car loan — $14K remaining through Capital One. <strong>Only if you co-signed.</strong><br>
+            • Credit card debt — does NOT transfer to family (despite what collectors may say)<br>
+            • Student loans — Federal loans are discharged upon death
+          </p>
+        </div>
+
+        <div style="background: rgba(136,136,160,0.1); border: 1px solid rgba(136,136,160,0.3); border-radius: 10px; padding: 14px;">
+          <strong style="color: var(--text-dim);">⚪ SUBSCRIPTIONS STILL CHARGING:</strong>
+          <p style="font-size: 13px; color: var(--text); margin-top: 6px;">
+            Netflix, Spotify, iCloud, gym membership — cancel these to stop ongoing charges
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--purple); color: white;">8</div>
+  <div class="step-content">
+    <h3>🔊 AI Voice Walkthrough — "Here's what to do first..."</h3>
+    <div class="api-tags">
+      <span class="api-tag eleven">ElevenLabs TTS</span>
+      <span class="api-tag gemini">Gemini Script</span>
+    </div>
+    <p class="what-happens">
+      Gemini writes a warm, human script from the package data. ElevenLabs converts it to a soothing voice. The family member presses play and hears:<br><br>
+      <em style="color: var(--purple)">"Hi Sarah. I know this is an incredibly hard time, and the last thing you need is financial confusion on top of grief. So here's everything organized for you. The most urgent thing: you have 60 days to keep your health insurance through COBRA. Call this number... Next, there's a life insurance policy worth $100,000. Here's exactly who to call and what to say..."</em><br><br>
+      <strong>Stretch goal:</strong> If voice cloning was done during setup, this plays in the user's OWN voice.
+    </p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="step-num" style="background: var(--pink); color: white;">9</div>
+  <div class="step-content">
+    <h3>⛓️ Blockchain verification — "This package is authentic"</h3>
+    <div class="api-tags">
+      <span class="api-tag solana">Solana Verification</span>
+    </div>
+    <p class="what-happens">
+      At the bottom of the package, a Solana verification badge shows:<br><br>
+      <em>"This Afterlife Package was created on Jan 15, 2026 and has not been modified since. Verified on Solana: <span style="color: var(--pink)">tx: 4xK9f2mN...</span> — <a href="#" style="color: var(--pink)">View on Solana Explorer →</a>"</em><br><br>
+      This matters if there's ever a legal dispute about the contents. It's proof.
+    </p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SPONSOR MAPPING TABLE -->
+<div class="section">
+  <div class="section-label">Sponsor Coverage</div>
+  <h2>Which sponsor prizes can we win?</h2>
+
+  <table class="api-table">
+    <thead>
+      <tr>
+        <th>Sponsor Prize</th>
+        <th>How We Use It</th>
+        <th>Strength</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🥇 ADP (Gold Sponsor)</td>
+        <td>Entire concept built around ADP-managed workforce benefits data. Simulated ADP payroll data. Benefits checklist targets ADP-specific features (401k, life insurance, HSA, PTO, COBRA).</td>
+        <td style="color: var(--green);">⭐⭐⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td>Best Use of Gemini API</td>
+        <td>Core AI engine: speech extraction → structured data, gap detection, family script generation, benefit knowledge</td>
+        <td style="color: var(--green);">⭐⭐⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td>Best Use of ElevenLabs</td>
+        <td>Speech-to-text input, text-to-speech narration for family, voice cloning stretch goal</td>
+        <td style="color: var(--green);">⭐⭐⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td>Best Use of Solana</td>
+        <td>Package hash storage, timestamp verification, dead man's switch concept</td>
+        <td style="color: var(--accent2);">⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td>Best Use of Vultr</td>
+        <td>Backend deployment, encrypted data storage, check-in timer service</td>
+        <td style="color: var(--accent2);">⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td>Best Use of Presage</td>
+        <td>Optional: stress detection during financial recording sessions</td>
+        <td style="color: var(--text-dim);">⭐⭐</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="divider"></div>
+
+<!-- PITCH -->
+<div class="section">
+  <div class="section-label">The Pitch</div>
+  <h2>How you close the demo</h2>
+
+  <div class="pitch-card">
+    <h3>The closing line to ADP's judge:</h3>
+    <p>"ADP processes payroll for 1 in 6 American workers. That means ADP holds the 401k data, the life insurance beneficiary, the HSA balance, the PTO accrual, and the COBRA eligibility for <strong>millions of families</strong> who will one day need that information desperately.</p>
+    <p>Right now, when a worker dies, that data is locked behind HR portals and phone trees that a grieving spouse doesn't even know exist. <strong>Billions</strong> in life insurance goes unclaimed every year. PTO payouts are forgotten. COBRA deadlines pass in silence.</p>
+    <p>DeathBox makes sure that never happens. We help workers organize the financial data that ADP already manages — while they're alive — so their families are never left in the dark.</p>
+    <div class="line">"ADP's tagline is 'Always Designing for People.' We designed for the people left behind."</div>
+  </div>
+</div>
+
+<div style="text-align: center; padding: 60px 0 40px; color: var(--text-dim); font-size: 14px;">
+  Built with 🖤 for the people who won't know what to do when you're gone.
+</div>
+
+</div>
+</body>
+</html>

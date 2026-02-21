@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeathBox — Backend Architecture & Task Split</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafaf8;
+  --surface: #ffffff;
+  --surface2: #f4f3f0;
+  --border: #e4e2dc;
+  --text: #1a1a1a;
+  --text2: #555550;
+  --text3: #8a8880;
+  --orange: #e07030;
+  --orange-bg: #fef3ec;
+  --blue: #2563eb;
+  --blue-bg: #eff4ff;
+  --green: #16a34a;
+  --green-bg: #ecfdf3;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --purple: #7c3aed;
+  --purple-bg: #f3f0ff;
+  --code-bg: #1e1e2e;
+  --code-text: #cdd6f4;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.7;
+  padding: 40px 24px;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  margin-bottom: 8px;
+}
+
+h1 span { color: var(--orange); }
+
+.subtitle {
+  font-size: 15px;
+  color: var(--text3);
+  margin-bottom: 40px;
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+}
+
+h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-top: 28px;
+  margin-bottom: 10px;
+}
+
+p {
+  font-size: 15px;
+  color: var(--text2);
+  margin-bottom: 12px;
+  line-height: 1.75;
+}
+
+strong { color: var(--text); }
+
+/* Flow diagram */
+.flow-diagram {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  margin: 20px 0;
+  overflow-x: auto;
+}
+
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.flow-box {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.flow-box.frontend { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(37,99,235,0.2); }
+.flow-box.backend { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(224,112,48,0.2); }
+.flow-box.api { background: var(--purple-bg); color: var(--purple); border: 1px solid rgba(124,58,237,0.2); }
+.flow-box.data { background: var(--green-bg); color: var(--green); border: 1px solid rgba(22,163,74,0.2); }
+.flow-box.solana { background: #fdf4ff; color: #a21caf; border: 1px solid rgba(162,28,175,0.2); }
+
+.flow-arrow {
+  color: var(--text3);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.flow-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Code blocks */
+.code-block {
+  background: var(--code-bg);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+  overflow-x: auto;
+  position: relative;
+}
+
+.code-block .lang {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #6c7086;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.code-block pre {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--code-text);
+  line-height: 1.7;
+  white-space: pre;
+}
+
+.code-block .comment { color: #6c7086; }
+.code-block .keyword { color: #cba6f7; }
+.code-block .string { color: #a6e3a1; }
+.code-block .func { color: #89b4fa; }
+.code-block .var { color: #f9e2af; }
+.code-block .type { color: #94e2d5; }
+
+/* Callout boxes */
+.callout {
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin: 16px 0;
+  border-left: 4px solid;
+}
+
+.callout.important {
+  background: var(--orange-bg);
+  border-color: var(--orange);
+}
+
+.callout.info {
+  background: var(--blue-bg);
+  border-color: var(--blue);
+}
+
+.callout.tip {
+  background: var(--green-bg);
+  border-color: var(--green);
+}
+
+.callout .callout-title {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.callout.important .callout-title { color: var(--orange); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.tip .callout-title { color: var(--green); }
+
+.callout p { margin-bottom: 4px; font-size: 14px; }
+
+/* Person split */
+.person-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 16px 0;
+}
+
+.person-card.person-a { border-color: var(--blue); }
+.person-card.person-b { border-color: var(--orange); }
+
+.person-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.person-a .person-tag { background: var(--blue-bg); color: var(--blue); }
+.person-b .person-tag { background: var(--orange-bg); color: var(--orange); }
+
+.person-card h3 { margin-top: 0; font-size: 18px; }
+
+.task-list {
+  list-style: none;
+  padding: 0;
+}
+
+.task-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  display: flex;
+  gap: 10px;
+}
+
+.task-list li:last-child { border: none; }
+
+.task-hours {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text3);
+  background: var(--surface2);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  height: fit-content;
+  flex-shrink: 0;
+}
+
+/* Endpoint cards */
+.endpoint {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 16px 0;
+  overflow: hidden;
+}
+
+.endpoint-header {
+  padding: 12px 18px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.method {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.method.post { background: var(--green-bg); color: var(--green); }
+.method.get { background: var(--blue-bg); color: var(--blue); }
+
+.endpoint-path {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.endpoint-body {
+  padding: 18px;
+}
+
+.endpoint-body p { font-size: 14px; }
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 40px 0;
+}
+
+/* JSON inline */
+.json-key { color: #89b4fa; }
+.json-string { color: #a6e3a1; }
+.json-num { color: #fab387; }
+.json-bool { color: #cba6f7; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Death<span>Box</span> Backend</h1>
+<p class="subtitle">Architecture, data flow, API contracts, and task split for 2 backend devs (Solana handled separately)</p>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>The Big Picture — Where Does Backend Start?</h2>
+
+<p>The frontend handles two things on its own: <strong>recording audio from the mic</strong> (using browser's MediaRecorder API) and <strong>converting speech to text</strong> (calling ElevenLabs STT directly from the browser). Once the frontend has the <strong>transcript text</strong>, that's where backend takes over.</p>
+
+<div class="callout important">
+  <div class="callout-title">⚡ KEY INSIGHT</div>
+  <p>The frontend sends the <strong>transcript string</strong> to the backend. That's the handoff point. Backend never touches audio files.</p>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>Complete Data Flow</h2>
+
+<div class="flow-diagram">
+  <div class="flow-label">Step 1 — User Records (Frontend Only)</div>
+  <div class="flow-row">
+    <div class="flow-box frontend">🎙 User speaks into mic</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box frontend">MediaRecorder API captures audio blob</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box api">ElevenLabs STT API (called from frontend)</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box frontend">Transcript string</div>
+  </div>
+
+  <div style="height: 12px"></div>
+  <div class="flow-label">Step 2 — Analyze (Frontend → Backend → Gemini)</div>
+  <div class="flow-row">
+    <div class="flow-box frontend">Frontend sends transcript</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box backend">POST /api/analyze</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box api">Gemini API (extracts structured data)</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box data">JSON: found[] + missing[]</div>
+  </div>
+
+  <div style="height: 12px"></div>
+  <div class="flow-label">Step 3 — User Reviews Checklist (Frontend)</div>
+  <div class="flow-row">
+    <div class="flow-box frontend">Frontend renders found/missing items</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box frontend">User edits/adds info</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box data">Updated package_data JSON</div>
+  </div>
+
+  <div style="height: 12px"></div>
+  <div class="flow-label">Step 4 — Seal Package (Frontend → Backend → DB + Solana)</div>
+  <div class="flow-row">
+    <div class="flow-box frontend">Frontend sends final package_data</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box backend">POST /api/seal</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box backend">Encrypt + Store in DB</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box solana">Hash → Solana (separate person)</div>
+  </div>
+
+  <div style="height: 12px"></div>
+  <div class="flow-label">Step 5 — Family Opens Package (Frontend → Backend)</div>
+  <div class="flow-row">
+    <div class="flow-box frontend">Family clicks link</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box backend">GET /api/package/{id}</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box data">Full package JSON</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box frontend">Renders urgency cards</div>
+  </div>
+
+  <div style="height: 12px"></div>
+  <div class="flow-label">Step 6 — Voice Narration (Frontend → Backend → Gemini → ElevenLabs)</div>
+  <div class="flow-row">
+    <div class="flow-box frontend">Family clicks "Listen"</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box backend">POST /api/narrate</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box api">Gemini (writes script)</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box api">ElevenLabs TTS (makes audio)</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box frontend">MP3 plays</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>What Exactly Does Frontend Send to Backend?</h2>
+
+<p>There are only <strong>3 moments</strong> where the frontend talks to the backend. Here's the exact data for each:</p>
+
+<h3>Moment 1: After recording is done → Send transcript for analysis</h3>
+
+<div class="code-block">
+  <div class="lang">Frontend → Backend</div>
+<pre>
+<span class="comment">// Frontend makes this call after ElevenLabs STT returns the transcript</span>
+
+<span class="keyword">const</span> <span class="var">response</span> = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">"/api/analyze"</span>, {
+  <span class="var">method</span>: <span class="string">"POST"</span>,
+  <span class="var">headers</span>: { <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span> },
+  <span class="var">body</span>: <span class="func">JSON.stringify</span>({
+    <span class="var">transcript</span>: <span class="string">"I work at Acme Corp. I have a 401k through Fidelity, my company matches 4%. I also have health insurance through Anthem and an HSA with about 2 grand. I think they give us life insurance but I honestly don't remember how much. Oh, and I have a car loan — 14K left with Capital One."</span>
+  })
+});
+
+<span class="keyword">const</span> <span class="var">data</span> = <span class="keyword">await</span> <span class="var">response</span>.<span class="func">json</span>();
+<span class="comment">// data = { found: [...], missing: [...] }</span>
+<span class="comment">// Frontend renders this as the checklist (Screen 5)</span>
+</pre>
+</div>
+
+<h3>Moment 2: User confirms checklist → Seal the package</h3>
+
+<div class="code-block">
+  <div class="lang">Frontend → Backend</div>
+<pre>
+<span class="comment">// Frontend sends the complete reviewed data + recipient info</span>
+
+<span class="keyword">const</span> <span class="var">response</span> = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">"/api/seal"</span>, {
+  <span class="var">method</span>: <span class="string">"POST"</span>,
+  <span class="var">headers</span>: { <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span> },
+  <span class="var">body</span>: <span class="func">JSON.stringify</span>({
+    <span class="var">package_data</span>: {
+      <span class="var">found</span>: [
+        { <span class="var">type</span>: <span class="string">"401k"</span>, <span class="var">provider</span>: <span class="string">"Fidelity"</span>, <span class="var">match</span>: <span class="string">"4%"</span>, <span class="var">beneficiary</span>: <span class="string">"Mom (needs update)"</span> },
+        { <span class="var">type</span>: <span class="string">"health_insurance"</span>, <span class="var">provider</span>: <span class="string">"Anthem"</span>, <span class="var">cobra_eligible</span>: <span class="type">true</span> },
+        { <span class="var">type</span>: <span class="string">"hsa"</span>, <span class="var">balance</span>: <span class="type">2000</span>, <span class="var">beneficiary</span>: <span class="string">"none"</span> },
+        { <span class="var">type</span>: <span class="string">"auto_loan"</span>, <span class="var">lender</span>: <span class="string">"Capital One"</span>, <span class="var">balance</span>: <span class="type">14000</span> }
+      ],
+      <span class="var">missing</span>: [
+        { <span class="var">type</span>: <span class="string">"life_insurance"</span>, <span class="var">urgency</span>: <span class="string">"critical"</span> },
+        { <span class="var">type</span>: <span class="string">"pto"</span>, <span class="var">urgency</span>: <span class="string">"critical"</span> },
+        { <span class="var">type</span>: <span class="string">"add_insurance"</span>, <span class="var">urgency</span>: <span class="string">"high"</span> }
+      ]
+    },
+    <span class="var">recipient_name</span>: <span class="string">"Sarah"</span>,
+    <span class="var">recipient_email</span>: <span class="string">"sarah@email.com"</span>,
+    <span class="var">checkin_days</span>: <span class="type">30</span>
+  })
+});
+
+<span class="keyword">const</span> <span class="var">data</span> = <span class="keyword">await</span> <span class="var">response</span>.<span class="func">json</span>();
+<span class="comment">// data = { package_id: "pkg_abc123", solana_tx: "4xK9f2mN...", hash: "a7f3b9c2..." }</span>
+<span class="comment">// Frontend shows the sealed screen (Screen 6) with Solana tx</span>
+</pre>
+</div>
+
+<h3>Moment 3: Family clicks "Listen to Voice Walkthrough"</h3>
+
+<div class="code-block">
+  <div class="lang">Frontend → Backend</div>
+<pre>
+<span class="comment">// Frontend requests narration audio for the package</span>
+
+<span class="keyword">const</span> <span class="var">response</span> = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">"/api/narrate"</span>, {
+  <span class="var">method</span>: <span class="string">"POST"</span>,
+  <span class="var">headers</span>: { <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span> },
+  <span class="var">body</span>: <span class="func">JSON.stringify</span>({
+    <span class="var">package_id</span>: <span class="string">"pkg_abc123"</span>
+  })
+});
+
+<span class="comment">// Response is audio/mpeg (MP3 stream)</span>
+<span class="keyword">const</span> <span class="var">audioBlob</span> = <span class="keyword">await</span> <span class="var">response</span>.<span class="func">blob</span>();
+<span class="keyword">const</span> <span class="var">audioUrl</span> = <span class="func">URL.createObjectURL</span>(<span class="var">audioBlob</span>);
+<span class="comment">// Frontend plays this in the audio player (Screen 9)</span>
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>What Does Backend Do With This Data?</h2>
+
+<p>Here are the 5 backend endpoints. This is the complete backend. Nothing else is needed.</p>
+
+<div class="endpoint">
+  <div class="endpoint-header">
+    <span class="method post">POST</span>
+    <span class="endpoint-path">/api/analyze</span>
+  </div>
+  <div class="endpoint-body">
+    <p><strong>Receives:</strong> <code>{ transcript: "..." }</code></p>
+    <p><strong>What it does:</strong></p>
+    <p>1. Takes the transcript string</p>
+    <p>2. Builds a Gemini prompt with the transcript + system instructions telling Gemini to extract financial data and compare against known ADP benefit types</p>
+    <p>3. Calls Gemini API</p>
+    <p>4. Parses Gemini's JSON response</p>
+    <p>5. Returns <code>{ found: [...], missing: [...] }</code> to frontend</p>
+    <p><strong>Returns:</strong> Structured JSON with found items + missing items</p>
+  </div>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header">
+    <span class="method post">POST</span>
+    <span class="endpoint-path">/api/seal</span>
+  </div>
+  <div class="endpoint-body">
+    <p><strong>Receives:</strong> <code>{ package_data: {...}, recipient_name, recipient_email, checkin_days }</code></p>
+    <p><strong>What it does:</strong></p>
+    <p>1. Generates a unique package_id</p>
+    <p>2. Stores the package_data + recipient info + checkin deadline in the database</p>
+    <p>3. SHA-256 hashes the package_data</p>
+    <p>4. <strong>Calls the Solana module</strong> (written by Solana person) to write hash on-chain</p>
+    <p>5. Returns package_id + solana tx hash to frontend</p>
+    <p><strong>Returns:</strong> <code>{ package_id, solana_tx, hash, next_checkin }</code></p>
+  </div>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header">
+    <span class="method get">GET</span>
+    <span class="endpoint-path">/api/package/{package_id}</span>
+  </div>
+  <div class="endpoint-body">
+    <p><strong>Receives:</strong> package_id in URL</p>
+    <p><strong>What it does:</strong></p>
+    <p>1. Looks up the package in the database</p>
+    <p>2. Checks if the dead man's switch has triggered (last_checkin + checkin_days &lt; now)</p>
+    <p>3. If triggered → return the full package data</p>
+    <p>4. If not triggered → return 403 "Package is still locked"</p>
+    <p><strong>Returns:</strong> Full package JSON or 403 error</p>
+  </div>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header">
+    <span class="method post">POST</span>
+    <span class="endpoint-path">/api/narrate</span>
+  </div>
+  <div class="endpoint-body">
+    <p><strong>Receives:</strong> <code>{ package_id: "..." }</code></p>
+    <p><strong>What it does:</strong></p>
+    <p>1. Loads the package from DB</p>
+    <p>2. Sends the package data to Gemini with a prompt: "Write a warm, empathetic narration script for a grieving family member explaining their loved one's financial situation. Include urgency items first."</p>
+    <p>3. Takes Gemini's script text</p>
+    <p>4. Sends that script to ElevenLabs TTS API → gets MP3 audio back</p>
+    <p>5. Streams the MP3 back to the frontend</p>
+    <p><strong>Returns:</strong> audio/mpeg stream</p>
+  </div>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header">
+    <span class="method post">POST</span>
+    <span class="endpoint-path">/api/checkin</span>
+  </div>
+  <div class="endpoint-body">
+    <p><strong>Receives:</strong> <code>{ package_id: "..." }</code></p>
+    <p><strong>What it does:</strong></p>
+    <p>1. Updates last_checkin timestamp in DB to now</p>
+    <p>2. Returns the new deadline</p>
+    <p><strong>Returns:</strong> <code>{ next_checkin: "2026-04-16T00:00:00Z" }</code></p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>Database Schema (Simple — SQLite is fine)</h2>
+
+<div class="code-block">
+  <div class="lang">SQL</div>
+<pre>
+<span class="keyword">CREATE TABLE</span> <span class="type">packages</span> (
+    <span class="var">id</span>              TEXT PRIMARY KEY,       <span class="comment">-- "pkg_abc123"</span>
+    <span class="var">package_data</span>    TEXT NOT NULL,           <span class="comment">-- JSON string (the full financial data)</span>
+    <span class="var">recipient_name</span>  TEXT NOT NULL,           <span class="comment">-- "Sarah"</span>
+    <span class="var">recipient_email</span> TEXT NOT NULL,           <span class="comment">-- "sarah@email.com"</span>
+    <span class="var">checkin_days</span>    INTEGER DEFAULT 30,      <span class="comment">-- how many days before release</span>
+    <span class="var">last_checkin</span>    DATETIME NOT NULL,       <span class="comment">-- last time user confirmed alive</span>
+    <span class="var">created_at</span>      DATETIME NOT NULL,       <span class="comment">-- when package was created</span>
+    <span class="var">solana_tx</span>       TEXT,                    <span class="comment">-- "4xK9f2mN..." (filled by Solana person)</span>
+    <span class="var">package_hash</span>    TEXT                     <span class="comment">-- SHA-256 hash of package_data</span>
+);
+</pre>
+</div>
+
+<p>That's it. One table. For a hackathon, this is all you need.</p>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>🔀 Task Split — Person A vs Person B</h2>
+
+<p>Here's how to split the backend work between 2 people so they <strong>never block each other</strong>. They work on separate files and separate endpoints.</p>
+
+<div class="callout info">
+  <div class="callout-title">📌 RULE</div>
+  <p>Person A handles everything involving <strong>Gemini API</strong> (AI/data extraction). Person B handles everything involving <strong>storage, delivery, and ElevenLabs TTS</strong>. They share the database.</p>
+</div>
+
+<!-- PERSON A -->
+<div class="person-card person-a">
+  <div class="person-tag">PERSON A — AI & Data Pipeline</div>
+  <h3>You own: Gemini integration + data extraction</h3>
+  <p style="font-size: 14px; color: var(--text2);">Your job is to make sure raw messy speech turns into clean structured financial data. You write the Gemini prompts and the /api/analyze endpoint.</p>
+
+  <ul class="task-list">
+    <li>
+      <span class="task-hours">Hr 0–1</span>
+      <div><strong>Setup FastAPI project skeleton.</strong> Create main.py, install dependencies (fastapi, uvicorn, httpx, google-generativeai). Create a shared database helper file (db.py) that both people use. Test that server runs.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 1–3</span>
+      <div><strong>Build POST /api/analyze.</strong> This is your main endpoint. Take the transcript string, build the Gemini prompt, call the API, parse the response. The prompt is the most important thing — it needs to extract accounts, flag confidence levels, and compare against known ADP benefits. Iterate on the prompt until the JSON output is clean.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 3–5</span>
+      <div><strong>Refine the Gemini prompt.</strong> Test with 3–4 different transcript examples (short, long, vague, detailed). Make sure the "missing items" detection works well — this is the ADP killer feature. The prompt should know about: 401k, life insurance, AD&D, HSA, PTO, COBRA, stock options/RSUs, pension.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 5–7</span>
+      <div><strong>Build the narration script generator.</strong> This is the Gemini prompt inside /api/narrate (Person B owns the endpoint, but you write the prompt). Given a package JSON, Gemini should write a warm, empathetic script that a voice will read to the family. Test the script quality — it should sound human, not robotic.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 7–9</span>
+      <div><strong>Integration testing.</strong> Test the full flow with frontend: transcript → analyze → checklist JSON. Fix any JSON parsing issues, edge cases, timeout handling. Add error responses for when Gemini fails.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 9–10</span>
+      <div><strong>Polish.</strong> Add the mock ADP data as a fallback. If Gemini is slow or fails, return the pre-built mock data so the demo always works.</div>
+    </li>
+  </ul>
+</div>
+
+<!-- PERSON B -->
+<div class="person-card person-b">
+  <div class="person-tag">PERSON B — Storage, Delivery & Voice</div>
+  <h3>You own: Database, /seal, /package, /narrate, /checkin + ElevenLabs TTS</h3>
+  <p style="font-size: 14px; color: var(--text2);">Your job is to make sure packages get stored safely, the dead man's switch works, the family can retrieve their package, and the voice narration plays. You handle ElevenLabs TTS (not STT — that's frontend).</p>
+
+  <ul class="task-list">
+    <li>
+      <span class="task-hours">Hr 0–1</span>
+      <div><strong>Setup database.</strong> Create SQLite database with the packages table. Write helper functions: create_package(), get_package(), update_checkin(). Share db.py with Person A.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 1–3</span>
+      <div><strong>Build POST /api/seal.</strong> Receive package_data from frontend, generate package_id (use uuid), hash the data with SHA-256, store in DB, set last_checkin to now. For the Solana part — create a placeholder function <code>write_to_solana(hash)</code> that returns a fake tx hash. The Solana person will replace this with real code later.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 3–5</span>
+      <div><strong>Build GET /api/package/{id} and POST /api/checkin.</strong> Package retrieval: check if dead man's switch triggered (is now > last_checkin + checkin_days?). If yes, return data. If no, return 403. Checkin: update last_checkin in DB. For the demo, add a query parameter <code>?force=true</code> that bypasses the timer so you can demo the family view without waiting 30 days.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 5–7</span>
+      <div><strong>Build POST /api/narrate.</strong> Load package from DB. Call Person A's narration prompt function to get the script text from Gemini. Then send that script to ElevenLabs TTS API. Get the MP3 audio back. Stream it to the frontend as audio/mpeg. Test with a hardcoded script first, then integrate Gemini.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 7–9</span>
+      <div><strong>Integration with Solana person.</strong> Replace the placeholder <code>write_to_solana()</code> with the real Solana module. Test that the hash gets written and the tx signature comes back. Display it in the /seal response.</div>
+    </li>
+    <li>
+      <span class="task-hours">Hr 9–10</span>
+      <div><strong>Deploy to Vultr.</strong> SSH into Vultr instance, install Python, copy code, setup nginx as reverse proxy, run uvicorn. Add CORS headers so frontend can call the API. Test from frontend deployed separately.</div>
+    </li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>How Person A and Person B Connect</h2>
+
+<div class="flow-diagram">
+  <div class="flow-label">Shared Interface Points</div>
+
+  <div style="margin-bottom: 16px;">
+    <p style="margin: 0; font-size: 14px;"><strong>1. Database (db.py)</strong> — Both people import this. Person A uses it to test, Person B owns it.</p>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <p style="margin: 0; font-size: 14px;"><strong>2. Gemini narration prompt</strong> — Person A writes the function <code>generate_narration_script(package_data) → string</code>. Person B calls it inside /api/narrate.</p>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <p style="margin: 0; font-size: 14px;"><strong>3. Solana module</strong> — Solana person writes <code>write_to_solana(hash) → tx_signature</code>. Person B calls it inside /api/seal.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>Starter Code — FastAPI Project Structure</h2>
+
+<div class="code-block">
+  <div class="lang">File Structure</div>
+<pre>
+deathbox-backend/
+├── main.py              <span class="comment"># FastAPI app, all endpoints</span>
+├── db.py                <span class="comment"># SQLite helpers (Person B owns, both use)</span>
+├── gemini_service.py    <span class="comment"># All Gemini prompts & calls (Person A owns)</span>
+├── elevenlabs_service.py<span class="comment"># ElevenLabs TTS call (Person B owns)</span>
+├── solana_service.py    <span class="comment"># Solana hash writing (Solana person owns)</span>
+├── mock_data.py         <span class="comment"># Hardcoded ADP mock data for fallback</span>
+├── requirements.txt
+└── .env                 <span class="comment"># API keys (never commit this)</span>
+</pre>
+</div>
+
+<div class="code-block">
+  <div class="lang">main.py — Skeleton</div>
+<pre>
+<span class="keyword">from</span> fastapi <span class="keyword">import</span> FastAPI, Response
+<span class="keyword">from</span> fastapi.middleware.cors <span class="keyword">import</span> CORSMiddleware
+<span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel
+<span class="keyword">import</span> hashlib, uuid, json
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime, timedelta
+
+<span class="keyword">from</span> db <span class="keyword">import</span> create_package, get_package, update_checkin
+<span class="keyword">from</span> gemini_service <span class="keyword">import</span> analyze_transcript, generate_narration_script
+<span class="keyword">from</span> elevenlabs_service <span class="keyword">import</span> text_to_speech
+<span class="keyword">from</span> solana_service <span class="keyword">import</span> write_to_solana
+
+app = FastAPI(title=<span class="string">"DeathBox API"</span>)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[<span class="string">"*"</span>],  <span class="comment"># tighten for production</span>
+    allow_methods=[<span class="string">"*"</span>],
+    allow_headers=[<span class="string">"*"</span>],
+)
+
+<span class="comment"># ── Request Models ──</span>
+
+<span class="keyword">class</span> <span class="type">AnalyzeRequest</span>(BaseModel):
+    transcript: str
+
+<span class="keyword">class</span> <span class="type">SealRequest</span>(BaseModel):
+    package_data: dict
+    recipient_name: str
+    recipient_email: str
+    checkin_days: int = 30
+
+<span class="keyword">class</span> <span class="type">NarrateRequest</span>(BaseModel):
+    package_id: str
+
+<span class="keyword">class</span> <span class="type">CheckinRequest</span>(BaseModel):
+    package_id: str
+
+<span class="comment"># ── Endpoints ──</span>
+
+@app.post(<span class="string">"/api/analyze"</span>)                     <span class="comment"># PERSON A</span>
+<span class="keyword">async def</span> <span class="func">analyze</span>(req: AnalyzeRequest):
+    result = <span class="keyword">await</span> analyze_transcript(req.transcript)
+    <span class="keyword">return</span> result  <span class="comment"># { found: [...], missing: [...] }</span>
+
+@app.post(<span class="string">"/api/seal"</span>)                        <span class="comment"># PERSON B</span>
+<span class="keyword">async def</span> <span class="func">seal</span>(req: SealRequest):
+    pkg_id = <span class="string">f"pkg_</span>{uuid.uuid4().hex[:8]}<span class="string">"</span>
+    pkg_json = json.dumps(req.package_data, sort_keys=True)
+    pkg_hash = hashlib.sha256(pkg_json.encode()).hexdigest()
+    solana_tx = <span class="keyword">await</span> write_to_solana(pkg_hash)  <span class="comment"># Solana person's code</span>
+    create_package(pkg_id, pkg_json, req.recipient_name,
+                   req.recipient_email, req.checkin_days, solana_tx, pkg_hash)
+    <span class="keyword">return</span> {
+        <span class="string">"package_id"</span>: pkg_id,
+        <span class="string">"solana_tx"</span>: solana_tx,
+        <span class="string">"hash"</span>: pkg_hash,
+        <span class="string">"next_checkin"</span>: (datetime.now() + timedelta(days=req.checkin_days)).isoformat()
+    }
+
+@app.get(<span class="string">"/api/package/{package_id}"</span>)         <span class="comment"># PERSON B</span>
+<span class="keyword">async def</span> <span class="func">get_pkg</span>(package_id: str, force: bool = False):
+    pkg = get_package(package_id)
+    <span class="keyword">if not</span> pkg:
+        <span class="keyword">return</span> {<span class="string">"error"</span>: <span class="string">"Not found"</span>}, 404
+    <span class="comment"># Check dead man's switch</span>
+    deadline = pkg[<span class="string">"last_checkin"</span>] + timedelta(days=pkg[<span class="string">"checkin_days"</span>])
+    <span class="keyword">if not</span> force <span class="keyword">and</span> datetime.now() < deadline:
+        <span class="keyword">return</span> {<span class="string">"error"</span>: <span class="string">"Package still locked"</span>, <span class="string">"unlocks_at"</span>: deadline.isoformat()}
+    <span class="keyword">return</span> json.loads(pkg[<span class="string">"package_data"</span>])
+
+@app.post(<span class="string">"/api/narrate"</span>)                      <span class="comment"># PERSON B (uses Person A's prompt)</span>
+<span class="keyword">async def</span> <span class="func">narrate</span>(req: NarrateRequest):
+    pkg = get_package(req.package_id)
+    script = <span class="keyword">await</span> generate_narration_script(pkg[<span class="string">"package_data"</span>])  <span class="comment"># Person A</span>
+    audio_bytes = <span class="keyword">await</span> text_to_speech(script)                       <span class="comment"># Person B</span>
+    <span class="keyword">return</span> Response(content=audio_bytes, media_type=<span class="string">"audio/mpeg"</span>)
+
+@app.post(<span class="string">"/api/checkin"</span>)                      <span class="comment"># PERSON B</span>
+<span class="keyword">async def</span> <span class="func">checkin</span>(req: CheckinRequest):
+    update_checkin(req.package_id)
+    pkg = get_package(req.package_id)
+    next_checkin = datetime.now() + timedelta(days=pkg[<span class="string">"checkin_days"</span>])
+    <span class="keyword">return</span> {<span class="string">"next_checkin"</span>: next_checkin.isoformat()}
+</pre>
+</div>
+
+<div class="callout tip">
+  <div class="callout-title">💡 DEMO TIP</div>
+  <p>Notice the <code>?force=true</code> parameter on GET /api/package. During the demo, the family view URL will be <code>/api/package/pkg_abc123?force=true</code> so you don't have to wait 30 days. Judges will understand this is a demo bypass.</p>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<h2>Summary — Who Builds What</h2>
+
+<div class="flow-diagram" style="background: var(--surface2);">
+  <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+    <tr style="border-bottom: 2px solid var(--border);">
+      <td style="padding: 10px; font-weight: 700; width: 33%;">🔵 Person A (AI Pipeline)</td>
+      <td style="padding: 10px; font-weight: 700; width: 33%;">🟠 Person B (Storage & Voice)</td>
+      <td style="padding: 10px; font-weight: 700; width: 33%;">🟣 Solana Person</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; vertical-align: top; border-right: 1px solid var(--border);">
+        <strong>Files you own:</strong><br>
+        gemini_service.py<br>
+        mock_data.py<br><br>
+        <strong>Endpoints you own:</strong><br>
+        POST /api/analyze<br><br>
+        <strong>Functions you export:</strong><br>
+        analyze_transcript()<br>
+        generate_narration_script()
+      </td>
+      <td style="padding: 10px; vertical-align: top; border-right: 1px solid var(--border);">
+        <strong>Files you own:</strong><br>
+        db.py<br>
+        elevenlabs_service.py<br>
+        main.py (routing)<br><br>
+        <strong>Endpoints you own:</strong><br>
+        POST /api/seal<br>
+        GET /api/package/{id}<br>
+        POST /api/narrate<br>
+        POST /api/checkin<br><br>
+        <strong>Functions you export:</strong><br>
+        text_to_speech()
+      </td>
+      <td style="padding: 10px; vertical-align: top;">
+        <strong>Files you own:</strong><br>
+        solana_service.py<br><br>
+        <strong>Functions you export:</strong><br>
+        write_to_solana(hash) → tx_sig<br><br>
+        <strong>Works independently.</strong><br>
+        Person B calls your function inside /api/seal.
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="callout important">
+  <div class="callout-title">⚡ FIRST HOUR — EVERYONE DOES THIS</div>
+  <p>1. Clone the repo / create the project folder together</p>
+  <p>2. Create the .env file with all API keys (GEMINI_API_KEY, ELEVENLABS_API_KEY)</p>
+  <p>3. pip install fastapi uvicorn httpx google-generativeai</p>
+  <p>4. Person B creates db.py and initializes the SQLite database</p>
+  <p>5. Person A creates gemini_service.py with a test call to verify the API key works</p>
+  <p>6. Solana person starts their own solana_service.py independently</p>
+  <p>7. Everyone runs main.py and confirms the server starts</p>
+  <p>Then split up and go.</p>
+</div>
+
+</div>
+</body>
+</html>
