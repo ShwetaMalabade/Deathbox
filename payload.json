@@ -1,0 +1,5 @@
+{
+  "packageId": "pkg_abc123",
+  "ciphertext": "BASE64_ENCRYPTED_BLOB_HERE",
+  "metadata": { "v": 1 }
+}
