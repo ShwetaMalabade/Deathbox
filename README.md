@@ -145,28 +145,6 @@ Cloud deployment.
 
 ---
 
-#  Project Structure
-
-deathbox/
-│
-├── frontend/
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-│
-├── backend/
-│   ├── main.py / server.js
-│   ├── routes/
-│   ├── services/
-│   └── models/
-│
-├── blockchain/
-│   └── solana_hash.js
-│
-└── README.md
-
----
-
 #  Installation
 
 ## Clone repository
