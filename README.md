@@ -8,7 +8,7 @@ Built for FinTech, AI, and Social Good hackathons, DeathBox ensures families nev
 
 ---
 
-# 🚨 Problem
+#  Problem
 
 When someone dies, families often have **no idea**:
 
@@ -29,7 +29,7 @@ Meanwhile:
 
 ---
 
-# 💡 Solution
+#  Solution
 
 DeathBox allows users to record their financial life through simple voice or text conversations.
 
@@ -49,15 +49,15 @@ Families receive:
 
 ---
 
-# 🧠 Key Features
+#  Key Features
 
-### 🎙️ Voice-based financial recording
+###  Voice-based financial recording
 Users talk naturally about finances instead of filling complex forms.
 
-### 🤖 AI financial extraction
+###  AI financial extraction
 AI converts messy conversations into structured financial records.
 
-### 📋 Benefits gap detection
+###  Benefits gap detection
 Detects missing:
 - Beneficiaries  
 - Life insurance details  
@@ -65,18 +65,18 @@ Detects missing:
 - PTO payouts  
 - COBRA eligibility  
 
-### ⛓️ Blockchain verification
+###  Blockchain verification
 Stores tamper-proof hash of package for authenticity.
 
-### ⏱️ Dead Man’s Switch
+###  Dead Man’s Switch
 If user doesn’t check in → package released to designated person.
 
-### 🔊 AI voice walkthrough
+###  AI voice walkthrough
 Family receives guided narration explaining what to do first.
 
 ---
 
-# 🏗️ Tech Stack
+#  Tech Stack
 
 **Frontend**
 - HTML/CSS/JavaScript or React
@@ -98,7 +98,7 @@ Family receives guided narration explaining what to do first.
 
 ---
 
-# 🔄 How It Works
+#  How It Works
 
 ## Phase 1: While user is alive
 1. User speaks or types financial info  
@@ -118,7 +118,7 @@ Family receives guided narration explaining what to do first.
 
 ---
 
-# 🎯 Hackathon Tracks
+#  Hackathon Tracks
 
 **Primary:** FinTech  
 **Secondary:** Social Good  
@@ -126,7 +126,7 @@ Family receives guided narration explaining what to do first.
 
 ---
 
-# 🏆 Sponsor Alignment
+#  Sponsor Alignment
 
 **ADP**  
 Built around payroll & employee benefits organization.
@@ -145,7 +145,7 @@ Cloud deployment.
 
 ---
 
-# 📦 Project Structure
+#  Project Structure
 
 deathbox/
 │
@@ -167,7 +167,7 @@ deathbox/
 
 ---
 
-# ⚙️ Installation
+#  Installation
 
 ## Clone repository
 git clone https://github.com/yourusername/deathbox.git  
@@ -186,7 +186,7 @@ npm run dev
 
 ---
 
-# 🔐 Environment Variables
+#  Environment Variables
 
 Create a .env file:
 
@@ -196,7 +196,7 @@ SOLANA_RPC=https://api.devnet.solana.com
 
 ---
 
-# 🚀 Future Improvements
+#  Future Improvements
 
 - Real payroll/benefits integrations  
 - Secure document upload  
@@ -207,7 +207,7 @@ SOLANA_RPC=https://api.devnet.solana.com
 
 ---
 
-# 👥 Team
+#  Team
 
 Soumya Vajahhala
 Shweta Malabade
@@ -216,6 +216,6 @@ Herik Patel
 
 ---
 
-# 📜 License
+#  License
 
 MIT License
