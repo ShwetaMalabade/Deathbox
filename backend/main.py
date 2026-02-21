@@ -28,6 +28,7 @@ from db import create_package, get_package, update_checkin
 from gemini_service import analyze_transcript, extract_document, generate_narration_script
 from elevenlabs_service import text_to_speech
 from solana_service import write_to_solana
+from validation_service import validate_package_completeness
 
 load_dotenv()
 
@@ -75,6 +76,9 @@ class NarrateRequest(BaseModel):
 class CheckinRequest(BaseModel):
     package_id: str
 
+class ValidatePackageRequest(BaseModel):
+    package_data: dict
+
 
 # ── Integration Helpers ────────────────────────────────────
 def _service_status():
@@ -105,6 +109,7 @@ async def root():
         "endpoints": [
             "POST /api/analyze",
             "POST /api/extract-doc",
+            "POST /api/validate-package",
             "POST /api/seal",
             "GET  /api/package/{id}",
             "POST /api/narrate",
@@ -166,6 +171,18 @@ async def api_frontend_contract():
                 "path": "/api/seal",
                 "request_keys": ["package_data", "recipient_name", "recipient_email", "checkin_days"],
                 "response_keys": ["package_id", "solana_tx", "hash", "next_checkin", "message"],
+            },
+            "validate_package": {
+                "method": "POST",
+                "path": "/api/validate-package",
+                "request_keys": ["package_data"],
+                "response_keys": [
+                    "all_sections_complete",
+                    "ready_to_seal",
+                    "sections",
+                    "todo_items",
+                    "summary",
+                ],
             },
             "package": {
                 "method": "GET",
@@ -255,6 +272,15 @@ async def api_extract_doc(file: UploadFile = File(...)):
 # ENDPOINT 3: SEAL PACKAGE (Person B)
 # ══════════════════════════════════════════════════════════
 
+@app.post("/api/validate-package")
+async def api_validate_package(req: ValidatePackageRequest):
+    """
+    Validate package completeness and return missing mandatory fields/TODOs.
+    Frontend can call this continuously while user fills details.
+    """
+    return validate_package_completeness(req.package_data)
+
+
 @app.post("/api/seal")
 async def api_seal(req: SealRequest):
     """
@@ -263,20 +289,31 @@ async def api_seal(req: SealRequest):
 
     Flow: Frontend → this endpoint → DB + Solana → confirmation → Frontend
     """
-    # 1. Generate unique package ID
+    # 1. Validate package completeness before sealing
+    validation = validate_package_completeness(req.package_data)
+    if not validation["ready_to_seal"]:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Package has missing mandatory information. Complete TODO items before sealing.",
+                "validation": validation,
+            },
+        )
+
+    # 2. Generate unique package ID
     pkg_id = f"pkg_{uuid.uuid4().hex[:8]}"
 
-    # 2. Convert package data to deterministic JSON string
+    # 3. Convert package data to deterministic JSON string
     #    sort_keys=True ensures same data always produces same hash
     pkg_json = json.dumps(req.package_data, sort_keys=True)
 
-    # 3. Hash the JSON with SHA-256
+    # 4. Hash the JSON with SHA-256
     pkg_hash = hashlib.sha256(pkg_json.encode()).hexdigest()
 
-    # 4. Write hash to Solana (calls Solana person's function)
+    # 5. Write hash to Solana (calls Solana person's function)
     solana_tx = await write_to_solana(pkg_hash)
 
-    # 5. Save everything to database
+    # 6. Save everything to database
     create_package(
         package_id=pkg_id,
         package_data_json=pkg_json,
@@ -287,7 +324,7 @@ async def api_seal(req: SealRequest):
         package_hash=pkg_hash
     )
 
-    # 6. Return confirmation to frontend
+    # 7. Return confirmation to frontend
     next_checkin = (datetime.utcnow() + timedelta(days=req.checkin_days)).isoformat()
 
     return {
