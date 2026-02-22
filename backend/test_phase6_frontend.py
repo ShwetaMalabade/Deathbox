@@ -4,12 +4,56 @@ DeathBox — Phase 6 Frontend Integration Test
 Checks frontend-facing readiness:
 - CORS + health endpoints
 - frontend contract endpoint
-- endpoint contract shapes used by frontend
+- endpoint contract shapes and validation-first seal flow used by frontend
 """
 
 from fastapi.testclient import TestClient
 
 from main import app
+
+
+def complete_package_data():
+    return {
+        "found": [
+            {
+                "type": "bank_account",
+                "institution_name": "Chase",
+                "account_type": "checking",
+                "estimated_balance": 12000,
+            },
+            {
+                "type": "401k",
+                "provider_platform": "Fidelity",
+                "investment_type": "401k",
+                "estimated_value": 185000,
+            },
+            {
+                "type": "life_insurance",
+                "insurer_name": "Prudential",
+                "policy_type": "term_life",
+                "coverage_amount": 500000,
+            },
+            {
+                "type": "credit_card",
+                "issuer_name": "Amex",
+                "card_name_or_type": "Gold",
+                "current_balance": 450,
+            },
+            {
+                "type": "loan_taken",
+                "lender_name": "SoFi",
+                "loan_type": "student_loan",
+                "outstanding_balance": 18000,
+            },
+            {
+                "type": "loan_given",
+                "borrower_name": "John Doe",
+                "amount_lent": 2500,
+            },
+        ],
+        "missing": [],
+        "employee_info": {"name": "Test User"},
+    }
 
 
 def run_phase6_frontend_tests():
@@ -56,7 +100,7 @@ def run_phase6_frontend_tests():
     contract = r.json() if r.status_code == 200 else {}
 
     # 4) Contract has required sections
-    required_sections = {"analyze", "seal", "package", "checkin", "narrate"}
+    required_sections = {"analyze", "validate_package", "seal", "package", "checkin", "narrate"}
     contracts = set(contract.get("contracts", {}).keys())
     check(
         "frontend contract sections present",
@@ -64,9 +108,27 @@ def run_phase6_frontend_tests():
         f"missing={required_sections - contracts}",
     )
 
-    # 5) Verify /api/seal frontend flow shape
+    # 5) Verify /api/validate-package response shape
+    r = client.post("/api/validate-package", json={"package_data": complete_package_data()})
+    ok = r.status_code == 200 and all(
+        key in r.json() for key in ["ready_to_seal", "sections", "todo_items", "summary"]
+    )
+    check("POST /api/validate-package response shape", ok, f"status={r.status_code}, body={r.text[:200]}")
+
+    # 6) Verify /api/seal blocks incomplete data as frontend expects
+    incomplete_payload = {
+        "package_data": {"found": [], "missing": [], "employee_info": {}},
+        "recipient_name": "Sarah",
+        "recipient_email": "sarah@example.com",
+        "checkin_days": 30,
+    }
+    r = client.post("/api/seal", json=incomplete_payload)
+    ok = r.status_code == 400 and "validation" in str(r.json().get("detail", {}))
+    check("POST /api/seal incomplete -> 400 with validation detail", ok, f"status={r.status_code}, body={r.text[:200]}")
+
+    # 7) Verify /api/seal success response shape with complete data
     seal_payload = {
-        "package_data": {"found": [], "missing": [], "personal_info": {}},
+        "package_data": complete_package_data(),
         "recipient_name": "Sarah",
         "recipient_email": "sarah@example.com",
         "checkin_days": 30,

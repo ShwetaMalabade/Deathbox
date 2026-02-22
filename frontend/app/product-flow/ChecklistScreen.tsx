@@ -5,21 +5,23 @@ import React from "react"
 export function ChecklistScreen({
   packageData,
   setPackageData,
+  validation,
   onFillGaps,
   onReview,
 }: {
   packageData: any
   setPackageData: (p: any) => void
+  validation: any
   onFillGaps: () => void
   onReview: () => void
 }) {
   const sections = [
-    "bank accounts",
-    "investments",
-    "insurance",
-    "credit cards",
-    "loans taken",
-    "loans given",
+    { label: "bank accounts", keys: ["total_bank_balance"] },
+    { label: "investments", keys: ["investments"] },
+    { label: "insurance", keys: ["insurance_policies"] },
+    { label: "credit cards", keys: ["active_credit_cards"] },
+    { label: "loans taken", keys: ["loan_taken"] },
+    { label: "loans given", keys: ["loan_given"] },
   ]
 
   const foundCount = Array.isArray(packageData?.found) ? packageData.found.length : 0
@@ -33,17 +35,52 @@ export function ChecklistScreen({
     return "⚠"
   }
 
+  function toSectionKey(item: any) {
+    const itemType = String(item?.type || "").toLowerCase()
+    const map: Record<string, string> = {
+      bank_account: "total_bank_balance",
+      checking: "total_bank_balance",
+      savings: "total_bank_balance",
+      investment: "investments",
+      "401k": "investments",
+      ira: "investments",
+      stocks: "investments",
+      life_insurance: "insurance_policies",
+      health_insurance: "insurance_policies",
+      insurance: "insurance_policies",
+      credit_card: "active_credit_cards",
+      credit_cards: "active_credit_cards",
+      loan_taken: "loan_taken",
+      auto_loan: "loan_taken",
+      mortgage: "loan_taken",
+      student_loan: "loan_taken",
+      loan_given: "loan_given",
+    }
+    return map[itemType] || String(item?.section || "").toLowerCase()
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
       <h3 className="mb-4 text-2xl font-bold">Checklist</h3>
 
+      {Array.isArray(validation?.todo_items) && validation.todo_items.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-500/40 bg-card p-4">
+          <h4 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">Mandatory TODOs</h4>
+          <ul className="space-y-1 text-sm text-foreground">
+            {validation.todo_items.map((todo: string, idx: number) => (
+              <li key={idx}>• {todo}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {sections.map((section) => (
-        <div key={section} className="mb-6">
-          <h4 className="mb-3 text-sm font-semibold uppercase text-muted-foreground">{section}</h4>
+        <div key={section.label} className="mb-6">
+          <h4 className="mb-3 text-sm font-semibold uppercase text-muted-foreground">{section.label}</h4>
           <div className="grid gap-3">
             {/* Render found items for this section */}
             {(packageData?.found || [])
-              .filter((it: any) => (it.section || "").toLowerCase() === section)
+              .filter((it: any) => section.keys.includes(toSectionKey(it)))
               .map((it: any, idx: number) => (
                 <div key={idx} className="rounded-lg border border-border bg-card p-4">
                   <div className="flex items-start justify-between">
@@ -78,7 +115,7 @@ export function ChecklistScreen({
 
             {/* Render missing items for this section */}
             {(packageData?.missing || [])
-              .filter((it: any) => (it.section || "").toLowerCase() === section)
+              .filter((it: any) => section.keys.includes(toSectionKey(it)))
               .map((it: any, idx: number) => (
                 <div key={idx} className="rounded-lg border border-border bg-background p-4">
                   <div className="flex items-start justify-between">
@@ -110,7 +147,9 @@ export function ChecklistScreen({
         <div className="mb-2 h-3 w-full rounded-full bg-background">
           <div className="h-3 rounded-full bg-amber" style={{ width: `${completeness}%` }} />
         </div>
-        <div className="mb-4 text-sm text-muted-foreground">{missingCount} items need attention</div>
+        <div className="mb-4 text-sm text-muted-foreground">
+          {validation?.ready_to_seal ? "All mandatory details look complete." : `${missingCount} items need attention`}
+        </div>
 
         <div className="flex gap-3">
           <button onClick={onFillGaps} className="rounded-full bg-amber px-6 py-2 text-sm font-semibold text-primary-foreground">

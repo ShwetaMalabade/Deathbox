@@ -6,11 +6,13 @@ import { analyzeTranscript, extractDocument } from "./api"
 export function GapFiller({
   packageData,
   setPackageData,
+  validation,
   onBack,
   onReview,
 }: {
   packageData: any
   setPackageData: (p: any) => void
+  validation: any
   onBack: () => void
   onReview: () => void
 }) {
@@ -24,9 +26,10 @@ export function GapFiller({
     setCurrentMissingIndex(0)
   }, [packageData])
 
+  const todoItems: string[] = Array.isArray(validation?.todo_items) ? validation.todo_items : []
   const missing = packageData?.missing || []
-
-  const remaining = Math.max(0, missing.length - currentMissingIndex)
+  const prompts = todoItems.length > 0 ? todoItems : missing.map((it: any) => it?.title || it?.name || it?.section || "this item")
+  const remaining = Math.max(0, prompts.length - currentMissingIndex)
 
   async function handleSendText(text: string) {
     if (!text) return
@@ -66,7 +69,7 @@ export function GapFiller({
     }
   }
 
-  if (!missing || missing.length === 0) {
+  if (prompts.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h3 className="mb-4 text-2xl font-bold">All gaps filled</h3>
@@ -79,7 +82,7 @@ export function GapFiller({
     )
   }
 
-  const current = missing[currentMissingIndex]
+  const current = prompts[currentMissingIndex]
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
@@ -90,7 +93,7 @@ export function GapFiller({
 
       <div className="mb-6 rounded-lg border border-border bg-card p-4">
         <div className="mb-2 text-sm text-muted-foreground">Assistant</div>
-        <div className="text-foreground">Please tell me about: <strong>{current?.title || current?.name || current?.section || "this item"}</strong></div>
+        <div className="text-foreground">Please tell me about: <strong>{current || "this item"}</strong></div>
       </div>
 
       <div className="mb-4 space-y-3">

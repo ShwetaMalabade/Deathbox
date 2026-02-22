@@ -67,7 +67,9 @@ Checks:
 2. CORS preflight behavior (`OPTIONS /api/seal`)
 3. `/api/frontend-contract` availability and structure
 4. Required contract sections exist
-5. `/api/seal` response shape expected by frontend
+5. `/api/validate-package` response shape expected by frontend
+6. `/api/seal` returns validation error for incomplete payloads
+7. `/api/seal` success shape for complete payloads
 
 ---
 
@@ -97,8 +99,10 @@ Expected: all checks pass.
 
 1. `GET /api/frontend-contract`
 2. Verify `contracts` and `upload` are present
-3. `POST /api/seal` with normal payload
-4. Browser/frontend should pass CORS with configured `FRONTEND_ORIGINS`
+3. `POST /api/validate-package` and verify `ready_to_seal`
+4. `POST /api/seal` with incomplete payload (expect `400` + validation detail)
+5. `POST /api/seal` with complete payload (expect success shape)
+6. Browser/frontend should pass CORS with configured `FRONTEND_ORIGINS`
 
 ---
 

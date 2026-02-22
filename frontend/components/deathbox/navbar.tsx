@@ -31,9 +31,12 @@ export function Navbar() {
         </a>
       </nav>
 
-      <button className="rounded-full border border-amber/30 bg-amber/10 px-5 py-2 text-sm font-medium text-amber transition-colors hover:bg-amber/20">
-        Early Access
-      </button>
+      <a
+        href="/product-flow"
+        className="rounded-full border border-amber/30 bg-amber/10 px-5 py-2 text-sm font-medium text-amber transition-colors hover:bg-amber/20"
+      >
+        Start Product Flow
+      </a>
     </motion.header>
   )
 }

@@ -44,11 +44,12 @@ This validates full flow in sequence:
 2. `GET /api/health`
 3. `GET /api/integration-status`
 4. `POST /api/analyze`
-5. `POST /api/seal`
-6. `GET /api/package/{id}` (locked)
-7. `GET /api/package/{id}?force=true` (unlocked)
-8. `POST /api/checkin`
-9. `POST /api/narrate` (audio OR fallback script)
+5. `POST /api/validate-package`
+6. `POST /api/seal`
+7. `GET /api/package/{id}` (locked)
+8. `GET /api/package/{id}?force=true` (unlocked)
+9. `POST /api/checkin`
+10. `POST /api/narrate` (audio OR fallback script)
 
 ---
 
@@ -70,7 +71,7 @@ source .venv/bin/activate
 python test_phase5_integration.py
 ```
 
-Expected: all checks pass (`9/9`).
+Expected: all checks pass (`10/10`).
 
 ### Manual check in Postman
 

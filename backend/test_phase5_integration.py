@@ -3,12 +3,56 @@ DeathBox — Phase 5 Integration Test
 ===================================
 Verifies cross-module integration and end-to-end flow:
 
-health -> analyze -> seal -> package(lock/force) -> checkin -> narrate
+health -> analyze -> validate -> seal -> package(lock/force) -> checkin -> narrate
 """
 
 from fastapi.testclient import TestClient
 
 from main import app
+
+
+def complete_package_data():
+    return {
+        "found": [
+            {
+                "type": "bank_account",
+                "institution_name": "Chase",
+                "account_type": "checking",
+                "estimated_balance": 12000,
+            },
+            {
+                "type": "401k",
+                "provider_platform": "Fidelity",
+                "investment_type": "401k",
+                "estimated_value": 185000,
+            },
+            {
+                "type": "life_insurance",
+                "insurer_name": "Prudential",
+                "policy_type": "term_life",
+                "coverage_amount": 500000,
+            },
+            {
+                "type": "credit_card",
+                "issuer_name": "Amex",
+                "card_name_or_type": "Gold",
+                "current_balance": 450,
+            },
+            {
+                "type": "loan_taken",
+                "lender_name": "SoFi",
+                "loan_type": "student_loan",
+                "outstanding_balance": 18000,
+            },
+            {
+                "type": "loan_given",
+                "borrower_name": "John Doe",
+                "amount_lent": 2500,
+            },
+        ],
+        "missing": [],
+        "employee_info": {"name": "Test User"},
+    }
 
 
 def run_phase5_integration():
@@ -37,7 +81,14 @@ def run_phase5_integration():
     check("GET /api/health", r.status_code == 200, f"status={r.status_code}")
 
     r = client.get("/api/integration-status")
-    ok = r.status_code == 200 and "services" in r.json()
+    body = r.json() if r.status_code == 200 else {}
+    ok = (
+        r.status_code == 200
+        and "services" in body
+        and "gemini_configured" in body["services"]
+        and "elevenlabs_configured" in body["services"]
+        and "solana_mode" in body["services"]
+    )
     check("GET /api/integration-status", ok, f"status={r.status_code}, body={r.text[:200]}")
 
     # 2) Analyze
@@ -49,11 +100,15 @@ def run_phase5_integration():
     r = client.post("/api/analyze", json={"transcript": transcript})
     ok = r.status_code == 200 and "found" in r.json() and "missing" in r.json()
     check("POST /api/analyze", ok, f"status={r.status_code}, body={r.text[:200]}")
-    package_data = r.json() if r.status_code == 200 else {"found": [], "missing": []}
 
-    # 3) Seal
+    # 3) Validate package completeness for sealing
+    r = client.post("/api/validate-package", json={"package_data": complete_package_data()})
+    ok = r.status_code == 200 and r.json().get("ready_to_seal") is True
+    check("POST /api/validate-package", ok, f"status={r.status_code}, body={r.text[:200]}")
+
+    # 4) Seal
     seal_req = {
-        "package_data": package_data,
+        "package_data": complete_package_data(),
         "recipient_name": "Sarah",
         "recipient_email": "sarah@example.com",
         "checkin_days": 30,
@@ -68,22 +123,22 @@ def run_phase5_integration():
         print(f"\nSummary: {passed}/{total} passed")
         return
 
-    # 4) Package retrieval (locked)
+    # 5) Package retrieval (locked)
     r = client.get(f"/api/package/{package_id}")
     ok = r.status_code == 200 and r.json().get("locked") is True
     check("GET /api/package/{id} locked", ok, f"status={r.status_code}, body={r.text[:200]}")
 
-    # 5) Package retrieval (force unlock)
+    # 6) Package retrieval (force unlock)
     r = client.get(f"/api/package/{package_id}?force=true")
     ok = r.status_code == 200 and r.json().get("locked") is False and "package_data" in r.json()
     check("GET /api/package/{id}?force=true", ok, f"status={r.status_code}, body={r.text[:200]}")
 
-    # 6) Checkin
+    # 7) Checkin
     r = client.post("/api/checkin", json={"package_id": package_id})
     ok = r.status_code == 200 and "next_checkin" in r.json()
     check("POST /api/checkin", ok, f"status={r.status_code}, body={r.text[:200]}")
 
-    # 7) Narrate (audio OR fallback json)
+    # 8) Narrate (audio OR fallback json)
     r = client.post("/api/narrate", json={"package_id": package_id})
     ctype = r.headers.get("content-type", "")
     if "audio/mpeg" in ctype:
