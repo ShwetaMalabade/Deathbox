@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 
 from db import create_package, get_package, update_checkin
 from gemini_service import analyze_transcript, extract_document, generate_narration_script
-from elevenlabs_service import text_to_speech
+from elevenlabs_service import text_to_speech, clone_voice
 from solana_service import write_to_solana
 from validation_service import validate_package_completeness
 
@@ -69,6 +69,8 @@ class SealRequest(BaseModel):
     recipient_name: str
     recipient_email: str
     checkin_days: int = 30
+    voice_id: str | None = None
+    skip_validation: bool = False
 
 class NarrateRequest(BaseModel):
     package_id: str
@@ -289,16 +291,17 @@ async def api_seal(req: SealRequest):
 
     Flow: Frontend → this endpoint → DB + Solana → confirmation → Frontend
     """
-    # 1. Validate package completeness before sealing
-    validation = validate_package_completeness(req.package_data)
-    if not validation["ready_to_seal"]:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "message": "Package has missing mandatory information. Complete TODO items before sealing.",
-                "validation": validation,
-            },
-        )
+    # 1. Validate package completeness before sealing (skippable for demo)
+    if not req.skip_validation:
+        validation = validate_package_completeness(req.package_data)
+        if not validation["ready_to_seal"]:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Package has missing mandatory information. Complete TODO items before sealing.",
+                    "validation": validation,
+                },
+            )
 
     # 2. Generate unique package ID
     pkg_id = f"pkg_{uuid.uuid4().hex[:8]}"
@@ -321,7 +324,8 @@ async def api_seal(req: SealRequest):
         recipient_email=req.recipient_email,
         checkin_days=req.checkin_days,
         solana_tx=solana_tx,
-        package_hash=pkg_hash
+        package_hash=pkg_hash,
+        voice_id=req.voice_id
     )
 
     # 7. Return confirmation to frontend
@@ -400,9 +404,10 @@ async def api_narrate(req: NarrateRequest):
     # 2. Generate narration script (Person A's function)
     script = await generate_narration_script(pkg["package_data"])
 
-    # 3. Convert script to audio (Person B's function)
+    # 3. Convert script to audio — use the user's cloned voice if available
     try:
-        audio_bytes = await text_to_speech(script)
+        cloned_voice_id = pkg.get("voice_id")
+        audio_bytes = await text_to_speech(script, voice_id=cloned_voice_id)
     except Exception as e:
         # If ElevenLabs fails, return the script as text so frontend can at least display it
         return {
@@ -422,7 +427,39 @@ async def api_narrate(req: NarrateRequest):
 
 
 # ══════════════════════════════════════════════════════════
-# ENDPOINT 6: CHECK-IN — Dead Man's Switch Reset (Person B)
+# ENDPOINT 6: CLONE VOICE — Create ElevenLabs Instant Voice Clone
+# ══════════════════════════════════════════════════════════
+
+@app.post("/api/clone-voice")
+async def api_clone_voice(file: UploadFile = File(...)):
+    """
+    Frontend sends the user's voice recording.
+    We create an Instant Voice Clone on ElevenLabs so the family narration
+    can be spoken in the user's own voice.
+
+    Flow: Frontend uploads audio → this endpoint → ElevenLabs → voice_id → Frontend
+    """
+    audio_bytes = await file.read()
+
+    if len(audio_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
+
+    if len(audio_bytes) > 25 * 1024 * 1024:  # 25MB limit
+        raise HTTPException(status_code=400, detail="Audio file too large. Max 25MB.")
+
+    try:
+        voice_id = await clone_voice(audio_bytes, filename=file.filename or "recording.webm")
+        return {"voice_id": voice_id}
+    except Exception as e:
+        error_msg = str(e)
+        if "paid_plan_required" in error_msg or "payment_required" in error_msg:
+            print("⚠️ Voice cloning skipped — ElevenLabs plan doesn't include it, using default voice")
+            return {"voice_id": None, "skipped": True, "reason": "Voice cloning requires an ElevenLabs paid plan. Narration will use the default voice."}
+        raise HTTPException(status_code=500, detail=f"Voice cloning failed: {error_msg}")
+
+
+# ══════════════════════════════════════════════════════════
+# ENDPOINT 7: CHECK-IN — Dead Man's Switch Reset (Person B)
 # ══════════════════════════════════════════════════════════
 
 @app.post("/api/checkin")

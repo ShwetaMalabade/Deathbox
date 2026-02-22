@@ -1,18 +1,11 @@
 "use client"
 
-import { motion, useInView } from "framer-motion"
-import { Play, Pause, Volume2 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { motion } from "framer-motion"
+import { Play, Pause, Volume2, Loader2, AlertCircle } from "lucide-react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { ScrollReveal } from "./scroll-reveal"
-
-const narrationLines = [
-  "Sarah, if you are hearing this, I want you to know that everything has been taken care of.",
-  "I have organized all of our financial accounts, insurance policies, and important documents.",
-  "The 401k with Fidelity has about $142,000. You are the beneficiary.",
-  "Our health insurance through Blue Cross will need to be continued with COBRA within 60 days.",
-  "The mortgage at Wells Fargo has $285,000 remaining. The life insurance should cover most of it.",
-  "I love you. You are going to be okay.",
-]
+import { useDeathBox } from "@/context/deathbox-context"
+import { getNarration } from "@/lib/api"
 
 function MiniWaveform({ isPlaying }: { isPlaying: boolean }) {
   return (
@@ -41,73 +34,106 @@ function MiniWaveform({ isPlaying }: { isPlaying: boolean }) {
   )
 }
 
-function NarrationTranscript({
-  isPlaying,
-  lines,
-}: {
-  isPlaying: boolean
-  lines: string[]
-}) {
-  const [currentLine, setCurrentLine] = useState(0)
-  const [displayText, setDisplayText] = useState("")
-  const [charIndex, setCharIndex] = useState(0)
-
-  useEffect(() => {
-    if (!isPlaying) return
-    const line = lines[currentLine]
-    if (charIndex < line.length) {
-      const timeout = setTimeout(() => {
-        setDisplayText((prev) => prev + line[charIndex])
-        setCharIndex((prev) => prev + 1)
-      }, 35 + Math.random() * 25)
-      return () => clearTimeout(timeout)
-    } else {
-      const timeout = setTimeout(() => {
-        if (currentLine < lines.length - 1) {
-          setCurrentLine((prev) => prev + 1)
-          setDisplayText("")
-          setCharIndex(0)
-        }
-      }, 1500)
-      return () => clearTimeout(timeout)
-    }
-  }, [charIndex, currentLine, isPlaying, lines])
-
-  return (
-    <div className="min-h-[80px] rounded-xl border border-border bg-background p-5">
-      <p className="text-sm leading-relaxed text-foreground md:text-base">
-        {displayText}
-        {isPlaying && (
-          <motion.span
-            className="ml-0.5 inline-block h-4 w-[2px] bg-amber"
-            animate={{ opacity: [1, 0] }}
-            transition={{ duration: 0.6, repeat: Infinity }}
-          />
-        )}
-      </p>
-      {!isPlaying && !displayText && (
-        <p className="text-sm text-muted-foreground">
-          Press play to hear the AI narration...
-        </p>
-      )}
-    </div>
-  )
-}
-
 export function VoicePlayerSection() {
+  const { analysisResult, voiceId, sealResult, sealCurrentPackage } = useDeathBox()
+
   const [isPlaying, setIsPlaying] = useState(false)
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [fallbackScript, setFallbackScript] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const recipientName =
+    (analysisResult?.personal_info as Record<string, unknown>)?.spouse as string
+    ?? (analysisResult?.employee_info as Record<string, unknown>)?.spouse as string
+    ?? "your loved one"
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60)
+    return `${m}:${String(sec).padStart(2, "0")}`
+  }
+
+  // Clean up object URL on unmount or when it changes
+  useEffect(() => {
+    return () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl)
+    }
+  }, [audioUrl])
+
+  const handleGenerate = useCallback(async () => {
+    if (!analysisResult) return
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      let pid = sealResult?.package_id
+
+      if (!pid) {
+        const sealed = await sealCurrentPackage(recipientName, "demo@deathbox.app")
+        pid = sealed.package_id
+      }
+
+      const result = await getNarration(pid)
+
+      if (result.audio) {
+        const url = URL.createObjectURL(result.audio)
+        setAudioUrl(url)
+        setFallbackScript(null)
+      } else if (result.script) {
+        setFallbackScript(result.script)
+        setAudioUrl(null)
+      }
+
+      setTimeout(() => {
+        document.getElementById("package-sealed")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 400)
+    } catch (err) {
+      console.error("Narration error:", err)
+      setError(err instanceof Error ? err.message : "Failed to generate narration")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [analysisResult, sealResult, sealCurrentPackage, recipientName])
+
+  const togglePlay = useCallback(() => {
+    if (!audioRef.current) return
+    if (isPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+    setIsPlaying(!isPlaying)
+  }, [isPlaying])
 
   useEffect(() => {
-    if (isInView) {
-      const timeout = setTimeout(() => setIsPlaying(true), 1500)
-      return () => clearTimeout(timeout)
+    const audio = audioRef.current
+    if (!audio) return
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const onLoadedMetadata = () => setDuration(audio.duration)
+    const onEnded = () => setIsPlaying(false)
+
+    audio.addEventListener("timeupdate", onTimeUpdate)
+    audio.addEventListener("loadedmetadata", onLoadedMetadata)
+    audio.addEventListener("ended", onEnded)
+    return () => {
+      audio.removeEventListener("timeupdate", onTimeUpdate)
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata)
+      audio.removeEventListener("ended", onEnded)
     }
-  }, [isInView])
+  }, [audioUrl])
+
+  const hasAnalysis = !!analysisResult
+  const hasAudio = !!audioUrl
+  const hasScript = !!fallbackScript
 
   return (
-    <section ref={ref} className="relative px-6 py-32 md:py-40">
+    <section className="relative px-6 py-32 md:py-40">
       <div className="mx-auto max-w-3xl">
         <ScrollReveal>
           <p className="mb-3 text-center text-sm font-medium uppercase tracking-[0.25em] text-amber">
@@ -121,72 +147,132 @@ export function VoicePlayerSection() {
         </ScrollReveal>
         <ScrollReveal delay={0.2}>
           <p className="mx-auto mb-16 max-w-xl text-center text-lg text-muted-foreground">
-            Your words, narrated with warmth and clarity. A personal message
-            that guides your family through every step.
+            {voiceId
+              ? "Your own voice, narrating a personal message that guides your family through every step."
+              : "Your words, narrated with warmth and clarity. A personal message that guides your family through every step."}
           </p>
         </ScrollReveal>
 
         <ScrollReveal delay={0.3}>
           <div className="overflow-hidden rounded-3xl border border-border bg-card p-8 md:p-10">
-            {/* Player controls */}
-            <div className="mb-8 flex items-center gap-6">
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-amber text-primary-foreground transition-transform hover:scale-105 active:scale-95 glow-amber-sm"
-                aria-label={isPlaying ? "Pause" : "Play"}
-              >
-                {isPlaying ? (
-                  <Pause className="h-6 w-6" />
+            {!hasAudio && !hasScript ? (
+              <div className="flex flex-col items-center gap-6 py-8">
+                {!hasAnalysis ? (
+                  <p className="text-center text-muted-foreground">
+                    Record your voice above first — then come here to generate
+                    the narration for your family.
+                  </p>
                 ) : (
-                  <Play className="ml-1 h-6 w-6" />
+                  <>
+                    <p className="max-w-md text-center text-muted-foreground">
+                      Your financial data is ready. Generate an AI narration
+                      {voiceId ? " in your own voice " : " "}
+                      that walks {recipientName} through everything.
+                    </p>
+                    <button
+                      onClick={handleGenerate}
+                      disabled={isLoading}
+                      className="flex items-center gap-2 rounded-full bg-amber px-8 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed glow-amber-sm"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generating narration...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4" />
+                          Generate Voice Message
+                        </>
+                      )}
+                    </button>
+                    {voiceId && (
+                      <p className="text-xs text-success">
+                        Using your cloned voice
+                      </p>
+                    )}
+                    {!voiceId && (
+                      <p className="text-xs text-muted-foreground">
+                        Will use the default narrator voice
+                      </p>
+                    )}
+                    {error && (
+                      <span className="flex items-center gap-1.5 text-sm text-danger">
+                        <AlertCircle className="h-4 w-4" />
+                        {error}
+                      </span>
+                    )}
+                  </>
                 )}
-              </button>
-              <div className="flex-1">
-                <p className="font-semibold text-foreground">
-                  Personal Message for Sarah
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  AI Narration - 4:32
-                </p>
               </div>
-              <Volume2 className="h-5 w-5 text-muted-foreground" />
-            </div>
+            ) : hasAudio ? (
+              <>
+                <audio ref={audioRef} src={audioUrl!} preload="metadata" />
 
-            {/* Progress bar */}
-            <div className="mb-6">
-              <div className="h-1 overflow-hidden rounded-full bg-secondary">
-                <motion.div
-                  className="h-full rounded-full bg-amber"
-                  initial={{ width: "0%" }}
-                  animate={isPlaying ? { width: "100%" } : {}}
-                  transition={{ duration: 60, ease: "linear" }}
-                />
+                {/* Player controls */}
+                <div className="mb-8 flex items-center gap-6">
+                  <button
+                    onClick={togglePlay}
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-amber text-primary-foreground transition-transform hover:scale-105 active:scale-95 glow-amber-sm"
+                    aria-label={isPlaying ? "Pause" : "Play"}
+                  >
+                    {isPlaying ? (
+                      <Pause className="h-6 w-6" />
+                    ) : (
+                      <Play className="ml-1 h-6 w-6" />
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">
+                      Personal Message for {recipientName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {voiceId ? "Your Voice" : "AI Narration"} — {formatTime(duration)}
+                    </p>
+                  </div>
+                  <Volume2 className="h-5 w-5 text-muted-foreground" />
+                </div>
+
+                {/* Progress bar */}
+                <div className="mb-6">
+                  <div className="h-1 overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-amber transition-all"
+                      style={{
+                        width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%",
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
+
+                {/* Waveform */}
+                <div className="mb-6">
+                  <MiniWaveform isPlaying={isPlaying} />
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <motion.div
+                    className="h-2 w-2 rounded-full bg-amber"
+                    animate={{ opacity: [1, 0.4, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  />
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Narration Script (audio unavailable)
+                  </span>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-6">
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-foreground md:text-base">
+                    {fallbackScript}
+                  </p>
+                </div>
               </div>
-              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                <span>0:00</span>
-                <span>4:32</span>
-              </div>
-            </div>
-
-            {/* Waveform */}
-            <div className="mb-6">
-              <MiniWaveform isPlaying={isPlaying} />
-            </div>
-
-            {/* Live transcript */}
-            <div className="mb-3 flex items-center gap-2">
-              {isPlaying && (
-                <motion.div
-                  className="h-2 w-2 rounded-full bg-success"
-                  animate={{ opacity: [1, 0.4, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-              )}
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Transcript
-              </span>
-            </div>
-            <NarrationTranscript isPlaying={isPlaying} lines={narrationLines} />
+            )}
           </div>
         </ScrollReveal>
       </div>

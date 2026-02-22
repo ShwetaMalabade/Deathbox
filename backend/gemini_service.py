@@ -24,10 +24,13 @@ load_dotenv()
 
 # ── Setup Gemini ──────────────────────────────────────────
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.0-flash")
-
-# Timeout for Gemini calls (seconds). If exceeded, use mock data.
-GEMINI_TIMEOUT = 15
+MODEL_CHAIN = [
+    ("gemini-2.5-flash", genai.GenerativeModel("gemini-2.5-flash")),
+    ("gemini-2.0-flash", genai.GenerativeModel("gemini-2.0-flash")),
+    ("gemini-1.5-flash", genai.GenerativeModel("gemini-1.5-flash")),
+]
+PRIMARY_MODEL = MODEL_CHAIN[0][1]
+GEMINI_TIMEOUT = 45
 
 
 # ══════════════════════════════════════════════════════════
@@ -78,7 +81,7 @@ EXTRACTION RULES:
    Extract: borrower_name, amount, date_given (if mentioned), any_documentation (if mentioned), repayment_status.
    Warning: Informal loans with no documentation are very hard to collect. Family should know these exist but recovery is uncertain.
 
-2. Also extract: subscriptions, employer benefits (PTO, COBRA eligibility, HSA), and any other financial items.
+2. Also extract subscriptions and any other financial items the user mentions.
 3. For EACH item, include a "confidence" level:
    - "certain" = user stated clearly ("I have a Chase checking with 8 thousand")
    - "uncertain" = user hedged ("I think there's about 15 grand", "maybe 2 thousand")
@@ -87,22 +90,39 @@ EXTRACTION RULES:
 5. Any field not provided → set to "unknown"
 
 MISSING ITEMS DETECTION:
-Check if the user mentioned items in ALL 6 categories. For any category that's completely missing or seems incomplete, add to the "missing" array:
+ONLY flag missing DETAILS for items the user actually talked about. Do NOT add entire unmentioned categories.
 
-- Bank accounts (checking/savings) → urgency: critical (family needs money for immediate expenses)
-- Life insurance → urgency: critical (billions go unclaimed because families don't know policies exist)
-- Health insurance / COBRA → urgency: critical (60-day deadline)
-- 401k / retirement accounts → urgency: critical (beneficiary may be outdated)
-- Accrued PTO / vacation days → urgency: high (many states require payout to estate)
-- AD&D insurance → urgency: high (90% of workers don't know they have it, bundled with life insurance)
-- HSA → urgency: high (transfers tax-free to beneficiary)
-- Outstanding credit cards → urgency: medium (family should NOT pay these unless co-signed)
-- Mortgage details → urgency: medium (family needs to know if they can keep the house)
-- Student loans → urgency: medium (federal loans discharged on death — family needs to know)
-- Loans given to others → urgency: low (money owed to the deceased)
-- Subscriptions → urgency: low (will keep charging)
+Per-type missing details to check:
+- Bank account → account number, balance, account type (checking/savings), online banking login
+- Subscription/membership (gym, streaming, etc.) → provider login email, username, password, monthly cost
+- 401k/retirement → account number, beneficiary name, provider, approximate balance
+- Insurance (life, health, auto) → policy number, provider, beneficiary, premium amount
+- Credit card → card issuer, outstanding balance, authorized users
+- Mortgage/loan → lender, remaining balance, monthly payment, co-signer
+- Investment/brokerage → account number, provider, beneficiary, approximate value
+
+Rules:
+- For EACH item the user mentioned, check if the key details above are missing. Add ONE missing item per gap.
+- Do NOT add "Life insurance", "HSA", "Student loans", etc. as missing just because the user didn't mention them. Only flag gaps in what they already told you.
+- Each missing item must have: "type" (the category, e.g. "subscription"), "name" (short label like "Planet Fitness login credentials"), "why_it_matters" (one sentence why the family needs this).
+- Typically 1-4 missing items. Only truly important gaps for the items the user described.
 
 Also extract into a "personal_info" object: full name (if mentioned), employer name, years of employment, state, spouse/family names, dependents.
+
+OUTPUT FORMAT — you MUST return this exact structure:
+{
+  "found": [
+    {"type": "bank_account", "bank_name": "Chase", "account_type": "checking", "balance": 8000, "confidence": "certain", "warnings": ["..."]},
+    {"type": "insurance", "provider": "Anthem", "policy_type": "health", "confidence": "certain", "warnings": ["..."]}
+  ],
+  "missing": [
+    {"type": "bank_account", "name": "Chase checking account number", "why_it_matters": "Family needs this to access funds."}
+  ],
+  "personal_info": {"full_name": "John", "spouse": "Sarah", "employer": "Acme Corp"}
+}
+
+"found" MUST be a FLAT array of objects — do NOT nest items under category keys.
+"missing" MUST be a FLAT array of objects — only gaps in items the user mentioned.
 
 CRITICAL: Return ONLY valid JSON. No markdown. No backticks. No explanation text. Start your response with { and end with }."""
 
@@ -117,47 +137,101 @@ async def analyze_transcript(transcript: str) -> dict:
     Returns:
         dict with keys: found (list), missing (list), employee_info (dict)
     """
-    try:
-        full_prompt = ANALYZE_PROMPT + f"\n\nHere is the transcript to analyze:\n\n\"{transcript}\""
+    full_prompt = ANALYZE_PROMPT + f"\n\nHere is the transcript to analyze:\n\n\"{transcript}\""
 
-        # Run the Gemini call with a timeout
-        response = await asyncio.wait_for(
-            asyncio.to_thread(model.generate_content, full_prompt),
-            timeout=GEMINI_TIMEOUT
-        )
+    last_error = ""
+    for model_name, current_model in MODEL_CHAIN:
+        try:
+            print(f"🔄 Trying {model_name}...")
+            response = await asyncio.wait_for(
+                asyncio.to_thread(current_model.generate_content, full_prompt),
+                timeout=GEMINI_TIMEOUT
+            )
 
-        # Clean the response — strip markdown backticks if Gemini added them
-        text = response.text.strip()
-        if text.startswith("```"):
-            # Remove ```json and trailing ```
-            lines = text.split("\n")
-            # Drop first line (```json) and last line (```)
-            text = "\n".join(lines[1:-1]).strip()
+            text = response.text.strip()
+            print(f"🔍 {model_name} raw response (first 300 chars): {text[:300]}")
+            if text.startswith("```"):
+                lines = text.split("\n")
+                text = "\n".join(lines[1:-1]).strip()
 
-        result = json.loads(text)
+            result = json.loads(text)
+            result = _normalize_analysis(result)
 
-        # Validate the structure has the required keys
-        if "found" not in result:
+            print(f"✅ {model_name} analyzed transcript: {len(result['found'])} found, {len(result['missing'])} missing")
+            return result
+
+        except Exception as e:
+            last_error = str(e)
+            is_rate_limit = "429" in last_error or "quota" in last_error.lower() or "resource_exhausted" in last_error.lower()
+            label = "rate limited" if is_rate_limit else "failed"
+            print(f"⚠️ {model_name} {label}: {last_error[:120]}")
+            continue
+
+    print(f"⚠️ All models failed — FALLING BACK TO MOCK DATA")
+    return MOCK_ANALYZE_RESPONSE
+
+
+def _normalize_analysis(result: dict) -> dict:
+    """Normalize the Gemini response into a consistent {found, missing, personal_info} structure."""
+    if "found" not in result:
+        for alt_key in ("financial_items", "extracted_data", "items", "accounts", "data"):
+            if alt_key in result:
+                result["found"] = result.pop(alt_key)
+                break
+        else:
             result["found"] = []
-        if "missing" not in result:
+
+    if isinstance(result["found"], dict):
+        flat = []
+        for category_key, items in result["found"].items():
+            if isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict) and "type" not in item:
+                        item["type"] = category_key.rstrip("s")
+                    flat.append(item)
+            elif isinstance(items, dict):
+                if "type" not in items:
+                    items["type"] = category_key
+                flat.append(items)
+        result["found"] = flat
+
+    if "missing" not in result:
+        for alt_key in ("missing_items", "missing_details", "gaps"):
+            if alt_key in result:
+                result["missing"] = result.pop(alt_key)
+                break
+        else:
             result["missing"] = []
-        if "personal_info" not in result and "employee_info" not in result:
-            result["personal_info"] = {}
-        elif "employee_info" in result and "personal_info" not in result:
+
+    if isinstance(result["missing"], dict):
+        flat_missing = []
+        for key, val in result["missing"].items():
+            if isinstance(val, list):
+                flat_missing.extend(val)
+            elif isinstance(val, dict):
+                flat_missing.append(val)
+        result["missing"] = flat_missing
+
+    if "personal_info" not in result:
+        if "employee_info" in result:
             result["personal_info"] = result.pop("employee_info")
+        else:
+            result["personal_info"] = {}
 
-        print(f"✅ Gemini analyzed transcript: {len(result['found'])} found, {len(result['missing'])} missing")
-        return result
+    pi = result["personal_info"]
+    if "spouse" not in pi or pi.get("spouse") is None:
+        for key in ("spouse_family_names", "spouse_name", "spouse_names", "partner", "family_names"):
+            if key in pi and pi[key]:
+                val = pi.pop(key)
+                pi["spouse"] = val[0] if isinstance(val, list) else val
+                break
+    if "employer" not in pi or pi.get("employer") is None:
+        for key in ("employer_name", "company", "company_name"):
+            if key in pi and pi[key]:
+                pi["employer"] = pi.pop(key)
+                break
 
-    except asyncio.TimeoutError:
-        print("⚠️ Gemini timeout — using mock data")
-        return MOCK_ANALYZE_RESPONSE
-    except json.JSONDecodeError as e:
-        print(f"⚠️ Gemini returned invalid JSON: {e} — using mock data")
-        return MOCK_ANALYZE_RESPONSE
-    except Exception as e:
-        print(f"⚠️ Gemini error: {e} — using mock data")
-        return MOCK_ANALYZE_RESPONSE
+    return result
 
 
 # ══════════════════════════════════════════════════════════
@@ -227,7 +301,7 @@ async def extract_document(image_bytes: bytes, mime_type: str = "image/jpeg") ->
 
         response = await asyncio.wait_for(
             asyncio.to_thread(
-                model.generate_content,
+                PRIMARY_MODEL.generate_content,
                 [EXTRACT_DOC_PROMPT, image_part]
             ),
             timeout=GEMINI_TIMEOUT
@@ -281,7 +355,7 @@ STRUCTURE (follow this order):
 RULES:
 - Include specific account numbers, policy numbers, provider names, bank names WHERE AVAILABLE.
 - Where information is "unknown", say "you'll need to check with the bank" or "look through their records" — don't skip it.
-- Keep it between 400-600 words (about 3-5 minutes when spoken).
+- Keep it between 300-400 words (about 2-3 minutes when spoken). Brevity is critical — do not exceed 400 words.
 - Do NOT use bullet points, dashes, headers, or any formatting — this will be SPOKEN out loud. Write in natural flowing sentences and paragraphs.
 - Do NOT start with "Dear" — start with "Hi [name]" for warmth.
 - Return ONLY the script text. No JSON. No labels. No quotes around it. Just the raw narration text.
@@ -307,7 +381,7 @@ async def generate_narration_script(package_data: dict) -> str:
         full_prompt = NARRATION_PROMPT + data_str
 
         response = await asyncio.wait_for(
-            asyncio.to_thread(model.generate_content, full_prompt),
+            asyncio.to_thread(PRIMARY_MODEL.generate_content, full_prompt),
             timeout=GEMINI_TIMEOUT
         )
 

@@ -12,9 +12,11 @@ import { FamilyIntroSection } from "@/components/deathbox/family-intro-section"
 import { FamilyPackageSection } from "@/components/deathbox/family-package-section"
 import { VoicePlayerSection } from "@/components/deathbox/voice-player-section"
 import { SectionDivider } from "@/components/deathbox/section-divider"
+import { DeathBoxProvider } from "@/context/deathbox-context"
 
 export default function DeathBoxPage() {
   return (
+    <DeathBoxProvider>
     <main className="relative min-h-screen bg-background">
       <Particles />
       <Navbar />
@@ -88,5 +90,6 @@ export default function DeathBoxPage() {
         </p>
       </footer>
     </main>
+    </DeathBoxProvider>
   )
 }

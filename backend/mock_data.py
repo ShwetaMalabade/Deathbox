@@ -233,34 +233,19 @@ MOCK_ANALYZE_RESPONSE = {
     ],
     "missing": [
         {
-            "type": "hsa",
-            "reason": "User did not mention a Health Savings Account.",
-            "urgency": "high",
-            "why_it_matters": "Many employers offer HSAs. Funds transfer tax-free to a designated beneficiary. Check with Acme Corp HR."
+            "type": "investment",
+            "name": "Fidelity 401k beneficiary",
+            "why_it_matters": "Beneficiary designations on 401k accounts override wills — family needs to verify who is listed."
         },
         {
-            "type": "pto_accrued",
-            "reason": "User did not mention paid time off or vacation days.",
-            "urgency": "critical",
-            "why_it_matters": "In many states, unused PTO must be paid out to the estate. With 3 years of employment, this could be $2,000–$10,000+."
+            "type": "insurance",
+            "name": "Group life insurance policy number",
+            "why_it_matters": "User mentioned employer life insurance but doesn't know the details — family needs the policy number to file a claim."
         },
         {
-            "type": "ad_and_d_insurance",
-            "reason": "User did not mention Accidental Death & Dismemberment insurance.",
-            "urgency": "high",
-            "why_it_matters": "90% of workers don't know they have AD&D. It's usually bundled free with group life insurance. Could be an additional $50K–$150K."
-        },
-        {
-            "type": "home_insurance",
-            "reason": "User has a mortgage but did not mention homeowners insurance.",
-            "urgency": "medium",
-            "why_it_matters": "If user owns a home (mortgage with Wells Fargo), there should be a homeowners insurance policy. The family needs to maintain this to protect the property."
-        },
-        {
-            "type": "disability_insurance",
-            "reason": "User did not mention disability insurance.",
-            "urgency": "low",
-            "why_it_matters": "If there was a period of disability before death, there may be uncollected benefits."
+            "type": "bank_account",
+            "name": "Chase checking account number",
+            "why_it_matters": "Family needs the account number to access funds with a death certificate."
         }
     ],
     "personal_info": {

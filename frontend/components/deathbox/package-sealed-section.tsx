@@ -155,7 +155,7 @@ function DeadManSwitch() {
 
 export function PackageSealedSection() {
   return (
-    <section className="relative px-6 py-32 md:py-40">
+    <section id="package-sealed" className="relative px-6 py-32 md:py-40">
       <div className="mx-auto max-w-3xl">
         <ScrollReveal>
           <p className="mb-3 text-center text-sm font-medium uppercase tracking-[0.25em] text-amber">

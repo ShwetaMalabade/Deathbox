@@ -41,10 +41,20 @@ def init_db():
             last_checkin    TEXT NOT NULL,
             created_at      TEXT NOT NULL,
             solana_tx       TEXT,
-            package_hash    TEXT
+            package_hash    TEXT,
+            voice_id        TEXT
         )
     """)
     conn.commit()
+
+    # Migrate: add voice_id column if it doesn't exist (for databases created before this field)
+    cursor = conn.execute("PRAGMA table_info(packages)")
+    columns = {row["name"] for row in cursor.fetchall()}
+    if "voice_id" not in columns:
+        conn.execute("ALTER TABLE packages ADD COLUMN voice_id TEXT")
+        conn.commit()
+        print("✅ Migrated: added voice_id column")
+
     conn.close()
     print("✅ Database initialized")
 
@@ -56,7 +66,8 @@ def create_package(
     recipient_email: str,
     checkin_days: int,
     solana_tx: str,
-    package_hash: str
+    package_hash: str,
+    voice_id: str = None
 ):
     """
     Save a new sealed package to the database.
@@ -69,17 +80,18 @@ def create_package(
         checkin_days: Days between required check-ins (default 30)
         solana_tx: Solana transaction signature
         package_hash: SHA-256 hash of the package data
+        voice_id: ElevenLabs voice clone ID for narration in the user's voice
     """
     now = datetime.utcnow().isoformat()
     conn = _get_connection()
     conn.execute(
         """
         INSERT INTO packages (id, package_data, recipient_name, recipient_email,
-                              checkin_days, last_checkin, created_at, solana_tx, package_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              checkin_days, last_checkin, created_at, solana_tx, package_hash, voice_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (package_id, package_data_json, recipient_name, recipient_email,
-         checkin_days, now, now, solana_tx, package_hash)
+         checkin_days, now, now, solana_tx, package_hash, voice_id)
     )
     conn.commit()
     conn.close()

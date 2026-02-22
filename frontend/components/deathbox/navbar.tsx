@@ -32,10 +32,10 @@ export function Navbar() {
       </nav>
 
       <a
-        href="/product-flow"
+        href="#how-it-works"
         className="rounded-full border border-amber/30 bg-amber/10 px-5 py-2 text-sm font-medium text-amber transition-colors hover:bg-amber/20"
       >
-        Start Product Flow
+        Get Started
       </a>
     </motion.header>
   )
