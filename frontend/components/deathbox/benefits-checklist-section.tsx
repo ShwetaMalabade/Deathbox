@@ -1,7 +1,7 @@
 "use client"
 
 import { motion, useInView } from "framer-motion"
-import { Check, AlertTriangle, X, Mic, Square, Upload, Loader2, AlertCircle } from "lucide-react"
+import { Check, AlertTriangle, X, AlertCircle, Mic, Square, Upload, Loader2 } from "lucide-react"
 import { useRef, useMemo, useState, useCallback, useEffect } from "react"
 import { ScrollReveal } from "./scroll-reveal"
 import { useDeathBox } from "@/context/deathbox-context"
@@ -152,7 +152,7 @@ function BenefitRow({ item, index }: { item: BenefitItem; index: number }) {
   )
 }
 
-function GapFillerPanel({ onNewData }: { onNewData: (text: string) => Promise<void> }) {
+function GapFillerPanel({ onNewData, onDone }: { onNewData: (text: string) => Promise<void>; onDone: () => void }) {
   const [isRecording, setIsRecording] = useState(false)
   const [liveTranscript, setLiveTranscript] = useState("")
   const [loading, setLoading] = useState(false)
@@ -187,6 +187,7 @@ function GapFillerPanel({ onNewData }: { onNewData: (text: string) => Promise<vo
           if (liveTranscript) await onNewData(liveTranscript)
         } finally {
           setLoading(false)
+          onDone()
         }
       }
 
@@ -219,7 +220,7 @@ function GapFillerPanel({ onNewData }: { onNewData: (text: string) => Promise<vo
     } catch {
       alert("Microphone access required.")
     }
-  }, [liveTranscript, onNewData])
+  }, [liveTranscript, onNewData, onDone])
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -245,6 +246,7 @@ function GapFillerPanel({ onNewData }: { onNewData: (text: string) => Promise<vo
       console.error("Upload failed:", err)
     } finally {
       setLoading(false)
+      onDone()
     }
   }
 
@@ -317,6 +319,7 @@ function GapFillerPanel({ onNewData }: { onNewData: (text: string) => Promise<vo
 
 export function BenefitsChecklistSection() {
   const { analysisResult, updateAnalysis } = useDeathBox()
+  const [gapFillDone, setGapFillDone] = useState(false)
   const [showGapFiller, setShowGapFiller] = useState(false)
 
   const active = analysisResult
@@ -339,17 +342,20 @@ export function BenefitsChecklistSection() {
 
   const hasScrolledRef = useRef(false)
   useEffect(() => {
-    if (hasRealData && foundCount > 0 && missingCount === 0 && !hasScrolledRef.current) {
+    if (!hasRealData || foundCount === 0 || hasScrolledRef.current) return
+
+    if (missingCount === 0 || gapFillDone) {
       hasScrolledRef.current = true
-      setShowGapFiller(false)
       setTimeout(() => {
         document.getElementById("package-sealed")?.scrollIntoView({ behavior: "smooth", block: "start" })
-      }, 600)
+      }, 1000)
     }
-    if (missingCount > 0) {
-      hasScrolledRef.current = false
-    }
-  }, [hasRealData, foundCount, missingCount])
+  }, [hasRealData, foundCount, missingCount, gapFillDone])
+
+  const handleGapFillDone = useCallback(() => {
+    setGapFillDone(true)
+    setShowGapFiller(false)
+  }, [])
 
   const handleNewGapData = useCallback(
     async (text: string) => {
@@ -397,6 +403,10 @@ export function BenefitsChecklistSection() {
     [active, updateAnalysis]
   )
 
+  const skipGapFill = useCallback(() => {
+    setGapFillDone(true)
+  }, [])
+
   return (
     <section className="relative px-6 py-32 md:py-40">
       <div className="mx-auto max-w-3xl">
@@ -417,8 +427,8 @@ export function BenefitsChecklistSection() {
           </p>
         </ScrollReveal>
 
-        {/* Missing info popup */}
-        {hasRealData && missingCount > 0 && (
+        {/* Missing info prompt — only shown once, before gap fill */}
+        {hasRealData && missingCount > 0 && !gapFillDone && (
           <ScrollReveal delay={0.25}>
             <div className="mb-8 rounded-2xl border border-danger/30 bg-danger/5 p-6">
               <div className="mb-3 flex items-center gap-3">
@@ -428,8 +438,7 @@ export function BenefitsChecklistSection() {
                 </h3>
               </div>
               <p className="mb-4 text-sm text-muted-foreground">
-                We couldn't find these in your recording. Add them now by
-                speaking or uploading a document.
+                We couldn&apos;t find these in your recording. You can add them now or skip to seal your package.
               </p>
               <ul className="mb-4 space-y-1.5">
                 {benefits
@@ -443,15 +452,23 @@ export function BenefitsChecklistSection() {
                     </li>
                   ))}
               </ul>
-              {!showGapFiller && (
+              <div className="flex flex-wrap gap-3">
+                {!showGapFiller && (
+                  <button
+                    onClick={() => setShowGapFiller(true)}
+                    className="flex items-center gap-2 rounded-full bg-amber px-5 py-2 text-sm font-semibold text-primary-foreground"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Fill These Gaps
+                  </button>
+                )}
                 <button
-                  onClick={() => setShowGapFiller(true)}
-                  className="flex items-center gap-2 rounded-full bg-amber px-5 py-2 text-sm font-semibold text-primary-foreground"
+                  onClick={skipGapFill}
+                  className="rounded-full border border-border px-5 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-amber/40 transition-colors"
                 >
-                  <Mic className="h-4 w-4" />
-                  Fill These Gaps
+                  Skip → Seal Package
                 </button>
-              )}
+              </div>
             </div>
           </ScrollReveal>
         )}
@@ -481,9 +498,9 @@ export function BenefitsChecklistSection() {
           ))}
         </div>
 
-        {/* Gap filler panel */}
-        {showGapFiller && hasRealData && (
-          <GapFillerPanel onNewData={handleNewGapData} />
+        {/* Gap filler panel — only shown once */}
+        {showGapFiller && !gapFillDone && hasRealData && (
+          <GapFillerPanel onNewData={handleNewGapData} onDone={handleGapFillDone} />
         )}
       </div>
     </section>
