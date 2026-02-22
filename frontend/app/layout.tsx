@@ -38,11 +38,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const isVercelDeployment = process.env.VERCEL === '1'
+
   return (
     <html lang="en">
       <body className={`${_inter.variable} ${_geistMono.variable} font-sans antialiased`}>
         {children}
-        <Analytics />
+        {isVercelDeployment ? <Analytics /> : null}
       </body>
     </html>
   )

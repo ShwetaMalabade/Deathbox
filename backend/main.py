@@ -18,6 +18,7 @@ import uuid
 import hashlib
 import os
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,7 +70,7 @@ class SealRequest(BaseModel):
     recipient_name: str
     recipient_email: str
     checkin_days: int = 30
-    voice_id: str | None = None
+    voice_id: Optional[str] = None
     skip_validation: bool = False
 
 class NarrateRequest(BaseModel):
@@ -465,7 +466,12 @@ async def api_clone_voice(file: UploadFile = File(...)):
         return {"voice_id": voice_id}
     except Exception as e:
         error_msg = str(e)
-        if "paid_plan_required" in error_msg or "payment_required" in error_msg:
+        if (
+            "paid_plan_required" in error_msg
+            or "payment_required" in error_msg
+            or "missing_permissions" in error_msg
+            or "create_instant_voice_clone" in error_msg
+        ):
             print("⚠️ Voice cloning skipped — ElevenLabs plan doesn't include it, using default voice")
             return {"voice_id": None, "skipped": True, "reason": "Voice cloning requires an ElevenLabs paid plan. Narration will use the default voice."}
         raise HTTPException(status_code=500, detail=f"Voice cloning failed: {error_msg}")

@@ -9,6 +9,7 @@ Three functions:
 import os
 import httpx
 from dotenv import load_dotenv
+from typing import Optional
 
 load_dotenv()
 
@@ -18,7 +19,7 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "Rachel")
 BASE_URL = "https://api.elevenlabs.io/v1"
 
 
-async def text_to_speech(script: str, voice_id: str | None = None) -> bytes:
+async def text_to_speech(script: str, voice_id: Optional[str] = None) -> bytes:
     """
     Convert narration script text to spoken audio using ElevenLabs TTS.
 

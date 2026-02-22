@@ -101,6 +101,12 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
 
   const startRecording = useCallback(async () => {
     try {
+      if (!window.isSecureContext) {
+        setAnalysisError(
+          "Microphone access requires HTTPS in production. Open this app on an https:// URL."
+        )
+        return
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -129,6 +135,11 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
       setVoiceCloneError(null)
     } catch (err) {
       console.error("Microphone access denied:", err)
+      setAnalysisError(
+        err instanceof Error
+          ? err.message
+          : "Microphone access failed. Please allow microphone permission in your browser."
+      )
     }
   }, [])
 
