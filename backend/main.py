@@ -67,8 +67,8 @@ class AnalyzeRequest(BaseModel):
 
 class SealRequest(BaseModel):
     package_data: dict
-    recipient_name: str
-    recipient_email: str
+    recipient_name: str = ""
+    recipient_email: str = ""
     checkin_days: int = 30
     voice_id: Optional[str] = None
     skip_validation: bool = False

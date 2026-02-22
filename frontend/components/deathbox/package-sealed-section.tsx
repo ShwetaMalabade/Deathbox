@@ -1,11 +1,10 @@
 "use client"
 
 import { motion, useInView } from "framer-motion"
-import { Lock, Shield, Clock, ExternalLink, Send, Loader2, CheckCircle2 } from "lucide-react"
+import { Lock, Shield, ExternalLink, Loader2, CheckCircle2, User, Mail, Clock, Mic, Square, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { ScrollReveal } from "./scroll-reveal"
 import { useDeathBox } from "@/context/deathbox-context"
-import { getPackage } from "@/lib/api"
 
 function VaultAnimation() {
   const ref = useRef(null)
@@ -48,7 +47,7 @@ function VaultAnimation() {
   )
 }
 
-function SolanaHash({ label, txHash, network }: { label: string; txHash: string; network: string }) {
+function SolanaHash({ txHash, network }: { txHash: string; network: string }) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true })
   const [displayHash, setDisplayHash] = useState("")
@@ -75,7 +74,7 @@ function SolanaHash({ label, txHash, network }: { label: string; txHash: string;
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-amber" />
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {label}
+            Seal — Blockchain Verification
           </span>
         </div>
         <a
@@ -102,91 +101,136 @@ function SolanaHash({ label, txHash, network }: { label: string; txHash: string;
   )
 }
 
-function DeadManSwitch() {
-  const [days, setDays] = useState(30)
-  const [hours, setHours] = useState(0)
-  const [minutes, setMinutes] = useState(0)
-  const [seconds, setSeconds] = useState(0)
+function EmotionalMessageRecorder({
+  onRecorded,
+  blob,
+  onRemove,
+}: {
+  onRecorded: (blob: Blob) => void
+  blob: Blob | null
+  onRemove: () => void
+}) {
+  const [isRecording, setIsRecording] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<BlobPart[]>([])
+  const [duration, setDuration] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev > 0) return prev - 1
-        setMinutes((m) => {
-          if (m > 0) return m - 1
-          setHours((h) => {
-            if (h > 0) return h - 1
-            setDays((d) => Math.max(0, d - 1))
-            return 23
-          })
-          return 59
-        })
-        return 59
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : "audio/webm",
       })
-    }, 1000)
-    return () => clearInterval(interval)
+      chunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+      recorder.onstop = () => {
+        const recorded = new Blob(chunksRef.current, { type: recorder.mimeType })
+        stream.getTracks().forEach((t) => t.stop())
+        onRecorded(recorded)
+        setIsRecording(false)
+        if (timerRef.current) clearInterval(timerRef.current)
+      }
+      recorder.start()
+      mediaRecorderRef.current = recorder
+      setIsRecording(true)
+      setDuration(0)
+      timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000)
+    } catch {
+      alert("Microphone access required.")
+    }
+  }, [onRecorded])
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop()
+    }
   }, [])
 
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${m}:${String(sec).padStart(2, "0")}`
+  }
+
+  if (blob) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-success/30 bg-success/5 px-4 py-3">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+        <span className="flex-1 text-sm text-foreground">Personal message recorded</span>
+        <button
+          onClick={onRemove}
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-danger hover:bg-danger/10 transition-colors"
+        >
+          <Trash2 className="h-3 w-3" />
+          Remove
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <Clock className="h-4 w-4 text-amber" />
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {"Dead Man's Switch"}
-        </span>
-      </div>
-      <div className="grid grid-cols-4 gap-3 text-center">
-        {[
-          { value: days, label: "Days" },
-          { value: hours, label: "Hours" },
-          { value: minutes, label: "Min" },
-          { value: seconds, label: "Sec" },
-        ].map((unit) => (
-          <div key={unit.label}>
-            <p className="font-mono text-2xl font-bold text-amber md:text-3xl">
-              {String(unit.value).padStart(2, "0")}
-            </p>
-            <p className="text-xs text-muted-foreground">{unit.label}</p>
-          </div>
-        ))}
-      </div>
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        Check in before the timer expires to keep your package sealed
+    <div className="rounded-lg border border-dashed border-border p-4">
+      <p className="mb-3 text-xs text-muted-foreground">
+        Record a personal voice message for your recipient. This is optional and separate from the AI-generated narration.
       </p>
+      <button
+        onClick={isRecording ? stopRecording : startRecording}
+        className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all ${
+          isRecording
+            ? "bg-danger text-white"
+            : "border border-border bg-background text-foreground hover:border-amber hover:bg-amber/5"
+        }`}
+      >
+        {isRecording ? (
+          <>
+            <Square className="h-3.5 w-3.5" />
+            Stop Recording — {formatTime(duration)}
+          </>
+        ) : (
+          <>
+            <Mic className="h-3.5 w-3.5" />
+            Record Personal Message
+          </>
+        )}
+      </button>
     </div>
   )
 }
 
 export function PackageSealedSection() {
-  const { sealResult, recipientEmail } = useDeathBox()
-  const [isReleasing, setIsReleasing] = useState(false)
-  const [releaseResult, setReleaseResult] = useState<{
-    transfer_tx?: string
-    recipient_name?: string
-  } | null>(null)
-  const [releaseError, setReleaseError] = useState<string | null>(null)
+  const {
+    analysisResult, sealResult, isSealing, sealCurrentPackage,
+    checkinDays, setCheckinDays,
+    recipientName, setRecipientName,
+    recipientEmail, setRecipientEmail,
+    emotionalMessageBlob, setEmotionalMessageBlob,
+    isSettingsSaved, saveSettings,
+  } = useDeathBox()
 
-  const handleDemoRelease = useCallback(async () => {
-    if (!sealResult?.package_id) return
-    setIsReleasing(true)
-    setReleaseError(null)
-    try {
-      const result = await getPackage(sealResult.package_id, true)
-      if (!result.locked) {
-        setReleaseResult({
-          transfer_tx: result.transfer_tx,
-          recipient_name: result.recipient_name,
-        })
-      }
-    } catch (err) {
-      console.error("Release error:", err)
-      setReleaseError(err instanceof Error ? err.message : "Release failed")
-    } finally {
-      setIsReleasing(false)
+  const hasTriggeredSeal = useRef(false)
+
+  useEffect(() => {
+    if (analysisResult && !sealResult && !isSealing && !hasTriggeredSeal.current) {
+      hasTriggeredSeal.current = true
+      sealCurrentPackage().catch((err) => {
+        console.error("Auto-seal failed:", err)
+        hasTriggeredSeal.current = false
+      })
     }
-  }, [sealResult])
+  }, [analysisResult, sealResult, isSealing, sealCurrentPackage])
 
   const solanaTx = sealResult?.solana_tx || ""
+  const canSave = recipientName.trim().length > 0 && recipientEmail.trim().length > 0 && checkinDays > 0
+
+  const handleSave = () => {
+    if (!canSave) return
+    saveSettings()
+  }
 
   return (
     <section id="package-sealed" className="relative px-6 py-32 md:py-40">
@@ -198,101 +242,150 @@ export function PackageSealedSection() {
         </ScrollReveal>
         <ScrollReveal delay={0.1}>
           <h2 className="mb-4 text-center text-4xl font-bold text-foreground md:text-5xl text-balance">
-            Package sealed
+            {isSealing ? "Sealing your package..." : "Package sealed"}
           </h2>
         </ScrollReveal>
         <ScrollReveal delay={0.2}>
           <p className="mx-auto mb-16 max-w-xl text-center text-lg text-muted-foreground">
-            Your information is encrypted, verified on-chain, and locked until
-            it is needed. Only you control when it opens.
+            {isSealing
+              ? "Writing your data hash to Solana blockchain for tamper-proof verification..."
+              : "Your information is encrypted and verified on-chain. Now configure when and to whom it should be delivered."}
           </p>
         </ScrollReveal>
 
-        <VaultAnimation />
+        {isSealing && (
+          <div className="flex justify-center mb-14">
+            <Loader2 className="h-16 w-16 animate-spin text-amber" />
+          </div>
+        )}
 
-        <div className="flex flex-col gap-4">
-          {/* Register tx (from sealing) */}
-          {solanaTx && (
-            <ScrollReveal delay={0.4}>
-              <SolanaHash label="Seal — Blockchain Verification" txHash={solanaTx} network="devnet" />
-            </ScrollReveal>
-          )}
+        {!isSealing && sealResult && (
+          <>
+            <VaultAnimation />
 
-          {/* Transfer tx (from release) */}
-          {releaseResult?.transfer_tx && (
-            <ScrollReveal delay={0.1}>
-              <SolanaHash label="Release — Transfer Proof" txHash={releaseResult.transfer_tx} network="devnet" />
-            </ScrollReveal>
-          )}
+            <div className="flex flex-col gap-5">
+              {solanaTx && (
+                <ScrollReveal delay={0.4}>
+                  <SolanaHash txHash={solanaTx} network="devnet" />
+                </ScrollReveal>
+              )}
 
-          <ScrollReveal delay={0.5}>
-            <DeadManSwitch />
-          </ScrollReveal>
+              {/* Settings form — shown before save */}
+              {!isSettingsSaved && (
+                <ScrollReveal delay={0.5}>
+                  <div className="rounded-xl border border-amber/20 bg-card p-6">
+                    <h3 className="mb-1 text-base font-semibold text-foreground">
+                      Delivery Settings
+                    </h3>
+                    <p className="mb-6 text-sm text-muted-foreground">
+                      Configure when and to whom this package should be released.
+                    </p>
 
-          {/* Demo release section */}
-          {sealResult?.package_id && !releaseResult && (
-            <ScrollReveal delay={0.6}>
-              <div className="rounded-xl border border-border bg-card p-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <Send className="h-4 w-4 text-amber" />
-                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Demo: Release Package
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  In production, the package releases automatically when the dead man&#39;s switch
-                  expires (no check-in for 30 days). For the demo, you can trigger it manually.
-                  {recipientEmail && (
-                    <span className="block mt-1 text-amber">
-                      Will be delivered to: {recipientEmail}
-                    </span>
-                  )}
-                </p>
-                <button
-                  onClick={handleDemoRelease}
-                  disabled={isReleasing}
-                  className="flex items-center gap-2 rounded-full bg-amber px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isReleasing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Releasing to Solana...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      Release Package Now (Demo)
-                    </>
-                  )}
-                </button>
-                {releaseError && (
-                  <p className="mt-2 text-sm text-danger">{releaseError}</p>
-                )}
-              </div>
-            </ScrollReveal>
-          )}
+                    <div className="space-y-5">
+                      {/* 1. Inactivity days */}
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Days of Inactivity Before Release
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="number"
+                            min={1}
+                            max={365}
+                            value={checkinDays}
+                            onChange={(e) => setCheckinDays(Math.max(1, parseInt(e.target.value) || 1))}
+                            className="w-24 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            days without check-in triggers delivery
+                          </span>
+                        </div>
+                      </div>
 
-          {/* Release confirmation */}
-          {releaseResult && (
-            <ScrollReveal delay={0.1}>
-              <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <span className="text-sm font-semibold text-green-500">
-                    Package Released
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  The package has been released to{" "}
-                  <span className="font-medium text-foreground">
-                    {releaseResult.recipient_name || recipientEmail || "the recipient"}
-                  </span>
-                  . Both the seal and release are now permanently recorded on Solana.
-                </p>
-              </div>
-            </ScrollReveal>
-          )}
-        </div>
+                      {/* 2. Recipient name */}
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          Recipient Name
+                        </label>
+                        <input
+                          type="text"
+                          value={recipientName}
+                          onChange={(e) => setRecipientName(e.target.value)}
+                          placeholder="e.g. Sarah"
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber"
+                        />
+                      </div>
+
+                      {/* 3. Recipient email */}
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          Recipient Email
+                        </label>
+                        <input
+                          type="email"
+                          value={recipientEmail}
+                          onChange={(e) => setRecipientEmail(e.target.value)}
+                          placeholder="e.g. sarah@email.com"
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber"
+                        />
+                      </div>
+
+                      {/* 4. Optional emotional message */}
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <Mic className="h-3 w-3" />
+                          Personal Voice Message (Optional)
+                        </label>
+                        <EmotionalMessageRecorder
+                          blob={emotionalMessageBlob}
+                          onRecorded={setEmotionalMessageBlob}
+                          onRemove={() => setEmotionalMessageBlob(null)}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSave}
+                      disabled={!canSave}
+                      className="mt-6 flex items-center gap-2 rounded-full bg-amber px-8 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Save Settings
+                    </button>
+                  </div>
+                </ScrollReveal>
+              )}
+
+              {/* Confirmation — shown after save */}
+              {isSettingsSaved && (
+                <ScrollReveal delay={0.1}>
+                  <div className="rounded-xl border border-success/30 bg-success/5 p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="h-5 w-5 text-success" />
+                      <span className="text-base font-semibold text-success">
+                        Everything is saved!
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Your package will be released to{" "}
+                      <span className="font-medium text-foreground">{recipientName}</span>
+                      {" "}at{" "}
+                      <span className="font-medium text-foreground">{recipientEmail}</span>
+                      {" "}after{" "}
+                      <span className="font-medium text-foreground">{checkinDays} days</span>
+                      {" "}of inactivity.
+                      {emotionalMessageBlob && " A personal voice message is included."}
+                      {" "}Scroll down to preview what they&#39;ll receive.
+                    </p>
+                  </div>
+                </ScrollReveal>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </section>
   )

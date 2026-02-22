@@ -2,17 +2,20 @@
 
 import { motion, useInView } from "framer-motion"
 import { useRef } from "react"
+import { useDeathBox } from "@/context/deathbox-context"
 
 export function FamilyIntroSection() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const { recipientName } = useDeathBox()
+
+  const displayName = recipientName || "your family"
 
   return (
     <section
       ref={ref}
       className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6"
     >
-      {/* Ambient glow */}
       <motion.div
         className="absolute inset-0"
         style={{
@@ -24,7 +27,6 @@ export function FamilyIntroSection() {
         transition={{ duration: 3 }}
       />
 
-      {/* Dove symbol */}
       <motion.div
         className="mb-12"
         initial={{ opacity: 0, y: 30 }}
@@ -58,7 +60,6 @@ export function FamilyIntroSection() {
         </svg>
       </motion.div>
 
-      {/* Time passage text */}
       <motion.p
         className="mb-6 text-sm font-medium uppercase tracking-[0.3em] text-amber"
         initial={{ opacity: 0 }}
@@ -91,7 +92,7 @@ export function FamilyIntroSection() {
         transition={{ duration: 1, delay: 2.2 }}
       >
         Your package has been delivered to{" "}
-        <span className="font-semibold text-amber">Sarah</span>.
+        <span className="font-semibold text-amber">{displayName}</span>.
       </motion.p>
 
       <motion.p
@@ -100,7 +101,7 @@ export function FamilyIntroSection() {
         animate={isInView ? { opacity: 0.7 } : {}}
         transition={{ duration: 1, delay: 2.8 }}
       >
-        She now has everything she needs.
+        They now have everything they need.
       </motion.p>
     </section>
   )

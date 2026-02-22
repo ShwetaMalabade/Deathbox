@@ -79,8 +79,8 @@ export async function cloneVoiceOnBackend(
  */
 export async function sealPackage(params: {
   package_data: Record<string, unknown>
-  recipient_name: string
-  recipient_email: string
+  recipient_name?: string
+  recipient_email?: string
   checkin_days?: number
   voice_id?: string
   skip_validation?: boolean

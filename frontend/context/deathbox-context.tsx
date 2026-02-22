@@ -12,6 +12,7 @@ import {
   analyzeTranscript,
   cloneVoiceOnBackend,
   sealPackage,
+  getPackage,
   type AnalyzeResponse,
   type SealResponse,
 } from "@/lib/api"
@@ -42,23 +43,36 @@ interface DeathBoxState {
   voiceId: string | null
   voiceCloneError: string | null
 
-  // Recipient info
-  recipientName: string
-  recipientEmail: string
-
   // Sealed Package
   sealResult: SealResponse | null
   isSealing: boolean
 
+  // Post-seal settings (configured after seal)
+  checkinDays: number
+  recipientName: string
+  recipientEmail: string
+  emotionalMessageBlob: Blob | null
+  isSettingsSaved: boolean
+
+  // Release (demo)
+  isReleased: boolean
+  isReleasing: boolean
+  releaseResult: { transfer_tx?: string; recipient_name?: string } | null
+  releaseError: string | null
+
   // Actions
   setStage: (stage: FlowStage) => void
+  setCheckinDays: (days: number) => void
   setRecipientName: (name: string) => void
   setRecipientEmail: (email: string) => void
+  setEmotionalMessageBlob: (blob: Blob | null) => void
   startRecording: () => Promise<void>
   stopRecording: () => void
   processRecording: (blob: Blob) => Promise<void>
   updateAnalysis: (data: AnalyzeResponse) => void
-  sealCurrentPackage: (recipientName: string, recipientEmail: string) => Promise<SealResponse>
+  sealCurrentPackage: () => Promise<SealResponse>
+  saveSettings: () => void
+  releasePackage: () => Promise<void>
 }
 
 const DeathBoxContext = createContext<DeathBoxState | null>(null)
@@ -81,9 +95,7 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
 
   // Analysis state
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(
-    null
-  )
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
 
   // Voice clone state
@@ -91,13 +103,25 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
   const [voiceId, setVoiceId] = useState<string | null>(null)
   const [voiceCloneError, setVoiceCloneError] = useState<string | null>(null)
 
-  // Recipient info state
-  const [recipientName, setRecipientName] = useState("")
-  const [recipientEmail, setRecipientEmail] = useState("")
-
   // Sealed package state
   const [sealResult, setSealResult] = useState<SealResponse | null>(null)
   const [isSealing, setIsSealing] = useState(false)
+
+  // Post-seal settings
+  const [checkinDays, setCheckinDays] = useState(30)
+  const [recipientName, setRecipientName] = useState("")
+  const [recipientEmail, setRecipientEmail] = useState("")
+  const [emotionalMessageBlob, setEmotionalMessageBlob] = useState<Blob | null>(null)
+  const [isSettingsSaved, setIsSettingsSaved] = useState(false)
+
+  // Release state
+  const [isReleased, setIsReleased] = useState(false)
+  const [isReleasing, setIsReleasing] = useState(false)
+  const [releaseResult, setReleaseResult] = useState<{
+    transfer_tx?: string
+    recipient_name?: string
+  } | null>(null)
+  const [releaseError, setReleaseError] = useState<string | null>(null)
 
   const startRecording = useCallback(async () => {
     try {
@@ -151,14 +175,7 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
     }
   }, [mediaRecorder])
 
-  /**
-   * After recording stops, the blob is ready. This function:
-   * 1) Transcribes audio via ElevenLabs STT
-   * 2) Sends transcript to backend /api/analyze (Gemini)
-   * 3) Kicks off voice cloning in parallel
-   */
   const processRecording = useCallback(async (blob: Blob) => {
-    // --- Step 1: Transcribe ---
     setIsTranscribing(true)
     setStage("processing")
     let text = ""
@@ -167,15 +184,12 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
       setTranscript(text)
     } catch (err) {
       console.error("STT error:", err)
-      setAnalysisError(
-        err instanceof Error ? err.message : "Transcription failed"
-      )
+      setAnalysisError(err instanceof Error ? err.message : "Transcription failed")
       setIsTranscribing(false)
       return
     }
     setIsTranscribing(false)
 
-    // --- Step 2 & 3: Analyze + Clone in parallel ---
     setIsAnalyzing(true)
     setIsCloningVoice(true)
 
@@ -186,9 +200,7 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("Analysis error:", err)
-        setAnalysisError(
-          err instanceof Error ? err.message : "Analysis failed"
-        )
+        setAnalysisError(err instanceof Error ? err.message : "Analysis failed")
       })
       .finally(() => setIsAnalyzing(false))
 
@@ -206,9 +218,7 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("Voice clone error:", err)
-        setVoiceCloneError(
-          err instanceof Error ? err.message : "Voice clone failed"
-        )
+        setVoiceCloneError(err instanceof Error ? err.message : "Voice clone failed")
       })
       .finally(() => setIsCloningVoice(false))
 
@@ -220,28 +230,49 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
     setAnalysisResult(data)
   }, [])
 
-  const sealCurrentPackage = useCallback(
-    async (recipientName: string, recipientEmail: string) => {
-      if (!analysisResult) throw new Error("No analysis data to seal")
-      setIsSealing(true)
-      try {
-        const res = await sealPackage({
-          package_data: analysisResult as unknown as Record<string, unknown>,
-          recipient_name: recipientName,
-          recipient_email: recipientEmail,
-          checkin_days: 30,
-          voice_id: voiceId ?? undefined,
-          skip_validation: true,
+  const sealCurrentPackage = useCallback(async () => {
+    if (!analysisResult) throw new Error("No analysis data to seal")
+    if (sealResult) return sealResult
+    setIsSealing(true)
+    try {
+      const res = await sealPackage({
+        package_data: analysisResult as unknown as Record<string, unknown>,
+        checkin_days: 30,
+        voice_id: voiceId ?? undefined,
+        skip_validation: true,
+      })
+      setSealResult(res)
+      setStage("sealed")
+      return res
+    } finally {
+      setIsSealing(false)
+    }
+  }, [analysisResult, voiceId, sealResult])
+
+  const saveSettings = useCallback(() => {
+    setIsSettingsSaved(true)
+  }, [])
+
+  const releasePackage = useCallback(async () => {
+    if (!sealResult?.package_id) throw new Error("No sealed package to release")
+    setIsReleasing(true)
+    setReleaseError(null)
+    try {
+      const result = await getPackage(sealResult.package_id, true)
+      if (!result.locked) {
+        setReleaseResult({
+          transfer_tx: result.transfer_tx,
+          recipient_name: result.recipient_name,
         })
-        setSealResult(res)
-        setStage("sealed")
-        return res
-      } finally {
-        setIsSealing(false)
+        setIsReleased(true)
       }
-    },
-    [analysisResult, voiceId]
-  )
+    } catch (err) {
+      console.error("Release error:", err)
+      setReleaseError(err instanceof Error ? err.message : "Release failed")
+    } finally {
+      setIsReleasing(false)
+    }
+  }, [sealResult])
 
   return (
     <DeathBoxContext.Provider
@@ -257,18 +288,29 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
         isCloningVoice,
         voiceId,
         voiceCloneError,
-        recipientName,
-        recipientEmail,
         sealResult,
         isSealing,
+        checkinDays,
+        recipientName,
+        recipientEmail,
+        emotionalMessageBlob,
+        isSettingsSaved,
+        isReleased,
+        isReleasing,
+        releaseResult,
+        releaseError,
         setStage,
+        setCheckinDays,
         setRecipientName,
         setRecipientEmail,
+        setEmotionalMessageBlob,
         startRecording,
         stopRecording,
         processRecording,
         updateAnalysis,
         sealCurrentPackage,
+        saveSettings,
+        releasePackage,
       }}
     >
       {children}
