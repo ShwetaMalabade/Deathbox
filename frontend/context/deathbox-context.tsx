@@ -42,12 +42,18 @@ interface DeathBoxState {
   voiceId: string | null
   voiceCloneError: string | null
 
+  // Recipient info
+  recipientName: string
+  recipientEmail: string
+
   // Sealed Package
   sealResult: SealResponse | null
   isSealing: boolean
 
   // Actions
   setStage: (stage: FlowStage) => void
+  setRecipientName: (name: string) => void
+  setRecipientEmail: (email: string) => void
   startRecording: () => Promise<void>
   stopRecording: () => void
   processRecording: (blob: Blob) => Promise<void>
@@ -84,6 +90,10 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
   const [isCloningVoice, setIsCloningVoice] = useState(false)
   const [voiceId, setVoiceId] = useState<string | null>(null)
   const [voiceCloneError, setVoiceCloneError] = useState<string | null>(null)
+
+  // Recipient info state
+  const [recipientName, setRecipientName] = useState("")
+  const [recipientEmail, setRecipientEmail] = useState("")
 
   // Sealed package state
   const [sealResult, setSealResult] = useState<SealResponse | null>(null)
@@ -236,9 +246,13 @@ export function DeathBoxProvider({ children }: { children: ReactNode }) {
         isCloningVoice,
         voiceId,
         voiceCloneError,
+        recipientName,
+        recipientEmail,
         sealResult,
         isSealing,
         setStage,
+        setRecipientName,
+        setRecipientEmail,
         startRecording,
         stopRecording,
         processRecording,

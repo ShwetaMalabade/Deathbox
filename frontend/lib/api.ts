@@ -151,6 +151,7 @@ export interface PackageResponse {
   recipient_name?: string
   created_at?: string
   solana_tx?: string
+  transfer_tx?: string
   package_hash?: string
   verified?: boolean
 }

@@ -12,3 +12,5 @@ node_modules/
 assets/
 
 frontend/.next/
+frontend/tsconfig.tsbuildinfo
+backend/solana/wallet.json

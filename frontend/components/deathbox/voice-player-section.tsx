@@ -35,7 +35,10 @@ function MiniWaveform({ isPlaying }: { isPlaying: boolean }) {
 }
 
 export function VoicePlayerSection() {
-  const { analysisResult, voiceId, sealResult, sealCurrentPackage } = useDeathBox()
+  const {
+    analysisResult, voiceId, sealResult, sealCurrentPackage,
+    recipientName, recipientEmail, setRecipientName, setRecipientEmail,
+  } = useDeathBox()
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -47,10 +50,11 @@ export function VoicePlayerSection() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const recipientName =
-    (analysisResult?.personal_info as Record<string, unknown>)?.spouse as string
-    ?? (analysisResult?.employee_info as Record<string, unknown>)?.spouse as string
-    ?? "your loved one"
+  const derivedRecipientName =
+    recipientName
+    || (analysisResult?.personal_info as Record<string, unknown>)?.spouse as string
+    || (analysisResult?.employee_info as Record<string, unknown>)?.spouse as string
+    || "your loved one"
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60)
@@ -74,7 +78,10 @@ export function VoicePlayerSection() {
       let pid = sealResult?.package_id
 
       if (!pid) {
-        const sealed = await sealCurrentPackage(recipientName, "demo@deathbox.app")
+        const sealed = await sealCurrentPackage(
+          derivedRecipientName,
+          recipientEmail || "demo@deathbox.app"
+        )
         pid = sealed.package_id
       }
 
@@ -98,7 +105,7 @@ export function VoicePlayerSection() {
     } finally {
       setIsLoading(false)
     }
-  }, [analysisResult, sealResult, sealCurrentPackage, recipientName])
+  }, [analysisResult, sealResult, sealCurrentPackage, derivedRecipientName, recipientEmail])
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current) return
@@ -167,8 +174,40 @@ export function VoicePlayerSection() {
                     <p className="max-w-md text-center text-muted-foreground">
                       Your financial data is ready. Generate an AI narration
                       {voiceId ? " in your own voice " : " "}
-                      that walks {recipientName} through everything.
+                      that walks {derivedRecipientName} through everything.
                     </p>
+
+                    {/* Recipient info */}
+                    <div className="w-full max-w-md space-y-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Recipient Name
+                        </label>
+                        <input
+                          type="text"
+                          value={recipientName}
+                          onChange={(e) => setRecipientName(e.target.value)}
+                          placeholder={
+                            (analysisResult?.personal_info as Record<string, unknown>)?.spouse as string
+                            || "e.g. Sarah"
+                          }
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Recipient Email
+                        </label>
+                        <input
+                          type="email"
+                          value={recipientEmail}
+                          onChange={(e) => setRecipientEmail(e.target.value)}
+                          placeholder="e.g. sarah@email.com"
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber"
+                        />
+                      </div>
+                    </div>
+
                     <button
                       onClick={handleGenerate}
                       disabled={isLoading}
@@ -224,7 +263,7 @@ export function VoicePlayerSection() {
                   </button>
                   <div className="flex-1">
                     <p className="font-semibold text-foreground">
-                      Personal Message for {recipientName}
+                      Personal Message for {derivedRecipientName}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {voiceId ? "Your Voice" : "AI Narration"} — {formatTime(duration)}

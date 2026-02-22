@@ -47,13 +47,16 @@ def init_db():
     """)
     conn.commit()
 
-    # Migrate: add voice_id column if it doesn't exist (for databases created before this field)
     cursor = conn.execute("PRAGMA table_info(packages)")
     columns = {row["name"] for row in cursor.fetchall()}
     if "voice_id" not in columns:
         conn.execute("ALTER TABLE packages ADD COLUMN voice_id TEXT")
         conn.commit()
         print("✅ Migrated: added voice_id column")
+    if "transfer_tx" not in columns:
+        conn.execute("ALTER TABLE packages ADD COLUMN transfer_tx TEXT")
+        conn.commit()
+        print("✅ Migrated: added transfer_tx column")
 
     conn.close()
     print("✅ Database initialized")
@@ -145,6 +148,19 @@ def update_checkin(package_id: str) -> bool:
     else:
         print(f"❌ Package {package_id} not found")
 
+    return updated
+
+
+def set_transfer_tx(package_id: str, transfer_tx: str) -> bool:
+    """Save the Solana transfer tx signature when a package is released."""
+    conn = _get_connection()
+    cursor = conn.execute(
+        "UPDATE packages SET transfer_tx = ? WHERE id = ?",
+        (transfer_tx, package_id)
+    )
+    conn.commit()
+    updated = cursor.rowcount > 0
+    conn.close()
     return updated
 
 

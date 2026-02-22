@@ -24,10 +24,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from db import create_package, get_package, update_checkin
+from db import create_package, get_package, update_checkin, set_transfer_tx
 from gemini_service import analyze_transcript, extract_document, generate_narration_script
 from elevenlabs_service import text_to_speech, clone_voice
-from solana_service import write_to_solana
+from solana_service import write_to_solana, record_transfer_to_solana
 from validation_service import validate_package_completeness
 
 load_dotenv()
@@ -95,7 +95,7 @@ def _service_status():
         "gemini_configured": bool(gemini_key and "your_" not in gemini_key.lower()),
         "elevenlabs_configured": bool(elevenlabs_key and "your_" not in elevenlabs_key.lower()),
         "elevenlabs_voice_configured": bool(elevenlabs_voice and "your_" not in elevenlabs_voice.lower()),
-        "solana_mode": "placeholder",
+        "solana_mode": "devnet",
         "cors_origins": FRONTEND_ORIGINS,
         "upload_max_mb": MAX_UPLOAD_BYTES // (1024 * 1024),
     }
@@ -371,7 +371,19 @@ async def api_get_package(package_id: str, force: bool = False):
             "days_remaining": (deadline - now).days
         }
 
-    # 3. Package is unlocked — serve it
+    # 3. Package is unlocked — record transfer on Solana if not already done
+    transfer_tx = pkg.get("transfer_tx")
+    if not transfer_tx:
+        try:
+            transfer_tx = await record_transfer_to_solana(
+                package_id=pkg["id"],
+                package_hash=pkg["package_hash"],
+            )
+            set_transfer_tx(pkg["id"], transfer_tx)
+        except Exception as e:
+            print(f"[Solana] Transfer recording failed (non-blocking): {e}")
+            transfer_tx = None
+
     return {
         "locked": False,
         "package_id": pkg["id"],
@@ -379,6 +391,7 @@ async def api_get_package(package_id: str, force: bool = False):
         "recipient_name": pkg["recipient_name"],
         "created_at": pkg["created_at"],
         "solana_tx": pkg["solana_tx"],
+        "transfer_tx": transfer_tx,
         "package_hash": pkg["package_hash"],
         "verified": True
     }

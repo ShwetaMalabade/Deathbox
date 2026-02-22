@@ -1,9 +1,11 @@
 "use client"
 
 import { motion, useInView } from "framer-motion"
-import { Lock, Shield, Clock } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { Lock, Shield, Clock, ExternalLink, Send, Loader2, CheckCircle2 } from "lucide-react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { ScrollReveal } from "./scroll-reveal"
+import { useDeathBox } from "@/context/deathbox-context"
+import { getPackage } from "@/lib/api"
 
 function VaultAnimation() {
   const ref = useRef(null)
@@ -11,31 +13,24 @@ function VaultAnimation() {
 
   return (
     <div ref={ref} className="relative mx-auto mb-14 flex h-48 w-48 items-center justify-center">
-      {/* Outer vault ring */}
       <motion.div
         className="absolute inset-0 rounded-full border-2 border-amber/30"
         initial={{ scale: 1.2, opacity: 0 }}
         animate={isInView ? { scale: 1, opacity: 1 } : {}}
         transition={{ duration: 0.8, ease: "easeOut" }}
       />
-
-      {/* Middle ring */}
       <motion.div
         className="absolute inset-4 rounded-full border border-amber/20"
         initial={{ scale: 1.3, opacity: 0 }}
         animate={isInView ? { scale: 1, opacity: 1 } : {}}
         transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
       />
-
-      {/* Inner circle */}
       <motion.div
         className="absolute inset-8 rounded-full bg-amber/10"
         initial={{ scale: 0, opacity: 0 }}
         animate={isInView ? { scale: 1, opacity: 1 } : {}}
         transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
       />
-
-      {/* Lock icon */}
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={isInView ? { scale: 1, opacity: 1 } : {}}
@@ -43,8 +38,6 @@ function VaultAnimation() {
       >
         <Lock className="relative z-10 h-12 w-12 text-amber" />
       </motion.div>
-
-      {/* Completion flash */}
       <motion.div
         className="absolute inset-0 rounded-full bg-amber/20"
         initial={{ scale: 0.8, opacity: 0 }}
@@ -55,33 +48,44 @@ function VaultAnimation() {
   )
 }
 
-function SolanaHash() {
+function SolanaHash({ label, txHash, network }: { label: string; txHash: string; network: string }) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true })
   const [displayHash, setDisplayHash] = useState("")
-  const fullHash = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA93TZzHtjQ3Kd7"
 
   useEffect(() => {
     if (!isInView) return
     let i = 0
     const interval = setInterval(() => {
-      if (i <= fullHash.length) {
-        setDisplayHash(fullHash.slice(0, i))
+      if (i <= txHash.length) {
+        setDisplayHash(txHash.slice(0, i))
         i++
       } else {
         clearInterval(interval)
       }
-    }, 40)
+    }, 30)
     return () => clearInterval(interval)
-  }, [isInView])
+  }, [isInView, txHash])
+
+  const explorerUrl = `https://explorer.solana.com/tx/${txHash}?cluster=${network}`
 
   return (
     <div ref={ref} className="overflow-hidden rounded-xl border border-border bg-card p-5">
-      <div className="mb-2 flex items-center gap-2">
-        <Shield className="h-4 w-4 text-amber" />
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Blockchain Verification
-        </span>
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-amber" />
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </span>
+        </div>
+        <a
+          href={explorerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-amber hover:underline"
+        >
+          Explorer <ExternalLink className="h-3 w-3" />
+        </a>
       </div>
       <p className="font-mono text-sm text-foreground break-all">
         {displayHash}
@@ -92,7 +96,7 @@ function SolanaHash() {
         />
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        Solana Mainnet - Immutable Record
+        Solana Devnet — Immutable Record
       </p>
     </div>
   )
@@ -154,6 +158,36 @@ function DeadManSwitch() {
 }
 
 export function PackageSealedSection() {
+  const { sealResult, recipientEmail } = useDeathBox()
+  const [isReleasing, setIsReleasing] = useState(false)
+  const [releaseResult, setReleaseResult] = useState<{
+    transfer_tx?: string
+    recipient_name?: string
+  } | null>(null)
+  const [releaseError, setReleaseError] = useState<string | null>(null)
+
+  const handleDemoRelease = useCallback(async () => {
+    if (!sealResult?.package_id) return
+    setIsReleasing(true)
+    setReleaseError(null)
+    try {
+      const result = await getPackage(sealResult.package_id, true)
+      if (!result.locked) {
+        setReleaseResult({
+          transfer_tx: result.transfer_tx,
+          recipient_name: result.recipient_name,
+        })
+      }
+    } catch (err) {
+      console.error("Release error:", err)
+      setReleaseError(err instanceof Error ? err.message : "Release failed")
+    } finally {
+      setIsReleasing(false)
+    }
+  }, [sealResult])
+
+  const solanaTx = sealResult?.solana_tx || ""
+
   return (
     <section id="package-sealed" className="relative px-6 py-32 md:py-40">
       <div className="mx-auto max-w-3xl">
@@ -177,12 +211,87 @@ export function PackageSealedSection() {
         <VaultAnimation />
 
         <div className="flex flex-col gap-4">
-          <ScrollReveal delay={0.4}>
-            <SolanaHash />
-          </ScrollReveal>
+          {/* Register tx (from sealing) */}
+          {solanaTx && (
+            <ScrollReveal delay={0.4}>
+              <SolanaHash label="Seal — Blockchain Verification" txHash={solanaTx} network="devnet" />
+            </ScrollReveal>
+          )}
+
+          {/* Transfer tx (from release) */}
+          {releaseResult?.transfer_tx && (
+            <ScrollReveal delay={0.1}>
+              <SolanaHash label="Release — Transfer Proof" txHash={releaseResult.transfer_tx} network="devnet" />
+            </ScrollReveal>
+          )}
+
           <ScrollReveal delay={0.5}>
             <DeadManSwitch />
           </ScrollReveal>
+
+          {/* Demo release section */}
+          {sealResult?.package_id && !releaseResult && (
+            <ScrollReveal delay={0.6}>
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <Send className="h-4 w-4 text-amber" />
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Demo: Release Package
+                  </span>
+                </div>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  In production, the package releases automatically when the dead man&#39;s switch
+                  expires (no check-in for 30 days). For the demo, you can trigger it manually.
+                  {recipientEmail && (
+                    <span className="block mt-1 text-amber">
+                      Will be delivered to: {recipientEmail}
+                    </span>
+                  )}
+                </p>
+                <button
+                  onClick={handleDemoRelease}
+                  disabled={isReleasing}
+                  className="flex items-center gap-2 rounded-full bg-amber px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isReleasing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Releasing to Solana...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Release Package Now (Demo)
+                    </>
+                  )}
+                </button>
+                {releaseError && (
+                  <p className="mt-2 text-sm text-danger">{releaseError}</p>
+                )}
+              </div>
+            </ScrollReveal>
+          )}
+
+          {/* Release confirmation */}
+          {releaseResult && (
+            <ScrollReveal delay={0.1}>
+              <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <span className="text-sm font-semibold text-green-500">
+                    Package Released
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  The package has been released to{" "}
+                  <span className="font-medium text-foreground">
+                    {releaseResult.recipient_name || recipientEmail || "the recipient"}
+                  </span>
+                  . Both the seal and release are now permanently recorded on Solana.
+                </p>
+              </div>
+            </ScrollReveal>
+          )}
         </div>
       </div>
     </section>
