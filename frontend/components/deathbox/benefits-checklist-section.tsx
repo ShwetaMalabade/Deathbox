@@ -2,7 +2,7 @@
 
 import { motion, useInView } from "framer-motion"
 import { Check, AlertTriangle, X, Mic, Square, Upload, Loader2, AlertCircle } from "lucide-react"
-import { useRef, useMemo, useState, useCallback } from "react"
+import { useRef, useMemo, useState, useCallback, useEffect } from "react"
 import { ScrollReveal } from "./scroll-reveal"
 import { useDeathBox } from "@/context/deathbox-context"
 import { speechToText } from "@/lib/elevenlabs"
@@ -336,6 +336,20 @@ export function BenefitsChecklistSection() {
   const foundCount = benefits.filter((b) => b.status === "found").length
   const missingCount = benefits.filter((b) => b.status === "missing").length
   const unknownCount = benefits.filter((b) => b.status === "unknown").length
+
+  const hasScrolledRef = useRef(false)
+  useEffect(() => {
+    if (hasRealData && foundCount > 0 && missingCount === 0 && !hasScrolledRef.current) {
+      hasScrolledRef.current = true
+      setShowGapFiller(false)
+      setTimeout(() => {
+        document.getElementById("package-sealed")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 600)
+    }
+    if (missingCount > 0) {
+      hasScrolledRef.current = false
+    }
+  }, [hasRealData, foundCount, missingCount])
 
   const handleNewGapData = useCallback(
     async (text: string) => {

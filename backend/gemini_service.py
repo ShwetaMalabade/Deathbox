@@ -340,22 +340,18 @@ NARRATION_PROMPT = """You are writing a voice narration script for DeathBox. A p
 
 TONE: Warm, empathetic, calm, and clear. This person is grieving. Don't be clinical or robotic. Write like a kind, knowledgeable friend who genuinely cares. Use the recipient's name. Be gentle but direct — they need actionable information, not vague comfort.
 
-STRUCTURE (follow this order):
+STRUCTURE (follow this order, but ONLY include sections where the user actually provided data):
 1. Brief compassionate greeting using the recipient's name.
-2. URGENT DEADLINES FIRST — COBRA (60 days), insurance claims, time-sensitive items.
-3. BANK ACCOUNTS — what accounts exist, approximate balances, which banks to contact. Mention if any are joint accounts (those transfer automatically).
-4. MONEY OWED TO THE FAMILY — life insurance payouts, PTO payout, HSA balance, investment accounts, final paycheck.
-5. INVESTMENTS — 401k, stocks, crypto, any investment accounts. Mention beneficiary issues.
-6. INSURANCE POLICIES — what's active, what needs to be claimed, what expires.
-7. DEBTS & CREDIT CARDS — be very clear about which debts the family is NOT responsible for. Credit card debt does not transfer. Secured debts (car, house) are tied to the asset. Federal student loans are discharged on death. Warn about debt collector tactics.
-8. LOANS GIVEN TO OTHERS — money people owe to the deceased. Family should know this exists.
-9. SUBSCRIPTIONS — list them, say to cancel.
-10. One brief, genuine encouraging sentence to close.
+2. Then go through ONLY the items in the "found" array — bank accounts, subscriptions, insurance, investments, loans, credit cards, etc. Talk about each one naturally.
+3. One brief, genuine encouraging sentence to close.
 
-RULES:
-- Include specific account numbers, policy numbers, provider names, bank names WHERE AVAILABLE.
-- Where information is "unknown", say "you'll need to check with the bank" or "look through their records" — don't skip it.
-- Keep it between 300-400 words (about 2-3 minutes when spoken). Brevity is critical — do not exceed 400 words.
+CRITICAL RULES:
+- ONLY mention items that appear in the "found" array. If the user only mentioned a bank account and a gym membership, ONLY talk about those two things.
+- Do NOT mention categories the user never talked about (insurance, 401k, student loans, etc.) unless they are in "found".
+- Do NOT say "you'll need to check with the bank" or "look through their records" for unknown fields. If a detail is "unknown", simply skip it.
+- Do NOT invent or assume any information that isn't in the data.
+- Include specific details (account numbers, balances, provider names) only WHERE the user actually provided them.
+- Keep it SHORT — scale the length to the amount of data. If only 2 items were found, the script should be 100-150 words. If 10 items, it can be 300-400 words.
 - Do NOT use bullet points, dashes, headers, or any formatting — this will be SPOKEN out loud. Write in natural flowing sentences and paragraphs.
 - Do NOT start with "Dear" — start with "Hi [name]" for warmth.
 - Return ONLY the script text. No JSON. No labels. No quotes around it. Just the raw narration text.
