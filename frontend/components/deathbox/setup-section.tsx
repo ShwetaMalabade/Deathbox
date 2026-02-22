@@ -57,9 +57,14 @@ export function SetupSection() {
           {setupCards.map((card) => (
             <StaggerItem key={card.title}>
               <motion.div
-                className="group relative overflow-hidden rounded-2xl border border-border bg-card p-8 transition-colors hover:border-amber/30"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-card p-8 transition-colors hover:border-amber/30 cursor-pointer"
                 whileHover={{ y: -4 }}
                 transition={{ duration: 0.3 }}
+                onClick={() => {
+                  if (card.title === "Recipients") {
+                    window.location.href = "/recipients";
+                  }
+                }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-amber/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative z-10">
