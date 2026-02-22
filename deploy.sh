@@ -6,6 +6,27 @@ echo "  DeathBox — Full Server Deployment Script"
 echo "============================================"
 echo ""
 
+# ── Required deployment secrets/config ───────────
+DEPLOY_DOMAIN="${DEPLOY_DOMAIN:-deathbox.108.61.157.223.nip.io}"
+
+if [ -z "${DEPLOY_GEMINI_API_KEY:-}" ]; then
+    echo "ERROR: DEPLOY_GEMINI_API_KEY is not set."
+    echo "Set it before running deploy.sh."
+    exit 1
+fi
+
+if [ -z "${DEPLOY_ELEVENLABS_API_KEY:-}" ]; then
+    echo "ERROR: DEPLOY_ELEVENLABS_API_KEY is not set."
+    echo "Set it before running deploy.sh."
+    exit 1
+fi
+
+if [ -z "${DEPLOY_ELEVENLABS_VOICE_ID:-}" ]; then
+    echo "ERROR: DEPLOY_ELEVENLABS_VOICE_ID is not set."
+    echo "Set it before running deploy.sh."
+    exit 1
+fi
+
 # ── 1. System packages ──────────────────────────
 echo "[1/9] Installing system packages..."
 apt-get update -qq
@@ -44,11 +65,11 @@ source .venv/bin/activate
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
 
-cat > .env << 'ENVEOF'
-GEMINI_API_KEY=AIzaSyC5TEHA67bDuvm2BOFOEITCXl0PGE0tpBI
-ELEVENLABS_API_KEY=sk_265f85719d4ae1ba22e855adbf06ac9a8dc96a00b2a7b11c
-ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
-FRONTEND_ORIGINS=https://deathbox.108.61.157.223.nip.io
+cat > .env << ENVEOF
+GEMINI_API_KEY=${DEPLOY_GEMINI_API_KEY}
+ELEVENLABS_API_KEY=${DEPLOY_ELEVENLABS_API_KEY}
+ELEVENLABS_VOICE_ID=${DEPLOY_ELEVENLABS_VOICE_ID}
+FRONTEND_ORIGINS=https://${DEPLOY_DOMAIN}
 HOST=0.0.0.0
 PORT=8000
 ENVEOF
@@ -60,9 +81,9 @@ echo "  ✓ Backend configured"
 echo "[5/9] Setting up frontend (this takes a few minutes)..."
 cd /var/www/deathbox/frontend
 
-cat > .env.local << 'ENVEOF'
-NEXT_PUBLIC_BACKEND_URL=https://deathbox.108.61.157.223.nip.io
-NEXT_PUBLIC_ELEVENLABS_API_KEY=sk_265f85719d4ae1ba22e855adbf06ac9a8dc96a00b2a7b11c
+cat > .env.local << ENVEOF
+NEXT_PUBLIC_BACKEND_URL=https://${DEPLOY_DOMAIN}
+NEXT_PUBLIC_ELEVENLABS_API_KEY=${DEPLOY_ELEVENLABS_API_KEY}
 ENVEOF
 
 npm install --legacy-peer-deps 2>&1 | tail -1
@@ -121,7 +142,7 @@ echo "[7/9] Configuring Nginx..."
 cat > /etc/nginx/sites-available/deathbox << 'NGXEOF'
 server {
     listen 80;
-    server_name deathbox.108.61.157.223.nip.io;
+    server_name __DEPLOY_DOMAIN__;
 
     location /api/ {
         proxy_pass http://127.0.0.1:8000/api/;
@@ -146,6 +167,8 @@ server {
 }
 NGXEOF
 
+sed -i "s/__DEPLOY_DOMAIN__/${DEPLOY_DOMAIN}/g" /etc/nginx/sites-available/deathbox
+
 rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/deathbox /etc/nginx/sites-enabled/deathbox
 nginx -t
@@ -161,10 +184,10 @@ echo "  ✓ Firewall configured"
 
 # ── 9. HTTPS with Certbot ───────────────────────
 echo "[9/9] Setting up HTTPS..."
-certbot --nginx -d deathbox.108.61.157.223.nip.io --non-interactive --agree-tos --register-unsafely-without-email || {
+certbot --nginx -d "${DEPLOY_DOMAIN}" --non-interactive --agree-tos --register-unsafely-without-email || {
     echo "  ⚠ Certbot failed (nip.io rate-limit or DNS issue)."
     echo "    The site will work on HTTP for now."
-    echo "    Retry later: certbot --nginx -d deathbox.108.61.157.223.nip.io"
+    echo "    Retry later: certbot --nginx -d ${DEPLOY_DOMAIN}"
 }
 echo "  ✓ HTTPS setup attempted"
 
@@ -191,8 +214,8 @@ echo ""
 
 echo "============================================"
 echo "  Your site should be live at:"
-echo "  https://deathbox.108.61.157.223.nip.io"
+echo "  https://${DEPLOY_DOMAIN}"
 echo ""
 echo "  If HTTPS failed, use HTTP temporarily:"
-echo "  http://deathbox.108.61.157.223.nip.io"
+echo "  http://${DEPLOY_DOMAIN}"
 echo "============================================"

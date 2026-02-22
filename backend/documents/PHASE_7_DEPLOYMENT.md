@@ -70,11 +70,29 @@ sudo apt update
 sudo apt install -y python3 python3-venv python3-pip nginx
 ```
 
+## 3.2.1 Export deploy secrets (required)
+
+`deploy.sh` now reads keys from shell environment variables (no hardcoded secrets):
+
+```bash
+export DEPLOY_GEMINI_API_KEY="your_real_gemini_key"
+export DEPLOY_ELEVENLABS_API_KEY="your_real_elevenlabs_key"
+export DEPLOY_ELEVENLABS_VOICE_ID="your_real_voice_id"
+export DEPLOY_DOMAIN="your-domain-or-nip-io-host"
+```
+
 ## 3.3 Copy project to server
 
 ```bash
 # Example path
 /home/ubuntu/deathbox/backend
+```
+
+Then run deployment:
+
+```bash
+cd /home/ubuntu/deathbox
+sudo -E bash deploy.sh
 ```
 
 ## 3.4 Setup backend env + deps
